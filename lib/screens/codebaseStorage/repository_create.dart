@@ -1,6 +1,5 @@
 // ignore_for_file: prefer_const_constructors, use_build_context_synchronously
 
-
 import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -26,8 +25,8 @@ class _RepositoryPageState extends State<RepositoryPage> {
   List<User> collabUsers = [];
   List<String> _dropdownEmailList = [];
   User? _selectedUser;
-  bool? private;
-  String pripub = "";
+  bool? private = false; // Set default to false (Public)
+  String pripub = "Public"; // Set default to "Public"
   final List<String> _selectedLanguages = [];
   final List<String> _selectedCategory = [];
   final _storage = FirebaseStorage.instance.ref('repository/');
@@ -199,7 +198,7 @@ class _RepositoryPageState extends State<RepositoryPage> {
               onChanged: (value) {
                 setState(() {
                   private = value;
-                  pripub = "private";
+                  pripub = "Private";
                 });
               },
               activeColor: Colors.red,
@@ -241,7 +240,7 @@ class _RepositoryPageState extends State<RepositoryPage> {
                   !collabUsers
                       .any((collab) => collab.studentId == user.studentId) &&
                   user.studentId != userProvider.currentUser.studentId)
-              .map((user) => user.studentId!)
+              .map((user) => user.id!)
               .toList();
 
           return DropdownButtonFormField<String>(
@@ -275,7 +274,8 @@ class _RepositoryPageState extends State<RepositoryPage> {
     return ElevatedButton(
       onPressed: () {
         if (_selectedUser != null &&
-            !collabUsers.any((user) => user.studentId == _selectedUser?.studentId)) {
+            !collabUsers
+                .any((user) => user.studentId == _selectedUser?.studentId)) {
           setState(() {
             collabUsers.add(_selectedUser!);
             _selectedUser = null;
@@ -316,7 +316,8 @@ class _RepositoryPageState extends State<RepositoryPage> {
   Widget _buildAddRepositoryButton(CRUDRepo repoProvider) {
     return ElevatedButton(
       onPressed: () async {
-        if (_repoController.text.isEmpty || _descriptionController.text.isEmpty) {
+        if (_repoController.text.isEmpty ||
+            _descriptionController.text.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Please fill in all required fields')),
           );
@@ -336,7 +337,10 @@ class _RepositoryPageState extends State<RepositoryPage> {
             categories: _selectedCategory,
             files: [],
             status: pripub,
-            collabs: collabUsers.map((e) => e.studentId!).where((id) => id.isNotEmpty).toList(),
+            collabs: collabUsers
+                .map((e) => e.studentId!)
+                .where((id) => id.isNotEmpty)
+                .toList(),
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           );

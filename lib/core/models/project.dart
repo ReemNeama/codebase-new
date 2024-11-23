@@ -90,11 +90,6 @@ class Project {
     try {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-      // Validate required fields
-      if (data['userId'] == null || data['name'] == null) {
-        throw DatabaseException('Missing required fields');
-      }
-
       return Project(
         id: doc.id,
         userId: data['userId'] ?? '',
@@ -104,51 +99,49 @@ class Project {
         screenshotsUrl: List<String>.from(data['screenshotsUrl'] ?? []),
         downloadUrl: data['downloadUrl'],
         downloadUrlForIphone: data['downloadUrlForIphone'],
-        status: data['status'] ?? 'Pending',
-       
+        status: data['status'] ?? statusOptions[0], // Default to 'Pending'
         isGraduation: data['isGraduation'] ?? false,
-      
-        createdAt: (data['createdAt'] as Timestamp).toDate(),
-        updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+        createdAt: data['createdAt'] != null 
+            ? (data['createdAt'] as Timestamp).toDate()
+            : DateTime.now(),
+        updatedAt: data['updatedAt'] != null 
+            ? (data['updatedAt'] as Timestamp).toDate()
+            : DateTime.now(),
         collaborators: List<String>.from(data['collaborators'] ?? []),
         downloadUrls: Map<String, String>.from(data['downloadUrls'] ?? {}),
-       
         category: data['category'] ?? '',
       );
     } catch (e) {
-      throw DatabaseException('Failed to parse project data: ${e.toString()}');
+      print('Error parsing project data: $e');
+      return Project.empty();
     }
   }
 
-  // Factory constructor for creating a Project from a Map
-  factory Project.fromMap(Map<String, dynamic>? map, String id) {
-    if (map == null) {
+  factory Project.fromMap(Map<String, dynamic>? data, String id) {
+    if (data == null) {
       return Project.empty();
     }
-    
+
     return Project(
       id: id,
-      userId: map['userId'] ?? '',
-      name: map['name'] ?? '',
-      description: map['description'] ?? '',
-      logoUrl: map['logoUrl'],
-      screenshotsUrl: List<String>.from(map['screenshotsUrl'] ?? []),
-      downloadUrl: map['downloadUrl'],
-      downloadUrlForIphone: map['downloadUrlForIphone'],
-      status: map['status'] ?? 'Pending',
-     
-      isGraduation: map['isGraduation'] ?? false,
-      
-      createdAt: map['createdAt'] != null 
-          ? (map['createdAt'] as Timestamp).toDate()
+      userId: data['userId'] ?? '',
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      logoUrl: data['logoUrl'],
+      screenshotsUrl: List<String>.from(data['screenshotsUrl'] ?? []),
+      downloadUrl: data['downloadUrl'],
+      downloadUrlForIphone: data['downloadUrlForIphone'],
+      status: data['status'] ?? statusOptions[0], // Default to 'Pending'
+      isGraduation: data['isGraduation'] ?? false,
+      createdAt: data['createdAt'] != null 
+          ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: map['updatedAt'] != null 
-          ? (map['updatedAt'] as Timestamp).toDate()
+      updatedAt: data['updatedAt'] != null 
+          ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
-      collaborators: List<String>.from(map['collaborators'] ?? []),
-      downloadUrls: Map<String, String>.from(map['downloadUrls'] ?? {}),
-     
-      category: map['category'] ?? '',
+      collaborators: List<String>.from(data['collaborators'] ?? []),
+      downloadUrls: Map<String, String>.from(data['downloadUrls'] ?? {}),
+      category: data['category'] ?? '',
     );
   }
 

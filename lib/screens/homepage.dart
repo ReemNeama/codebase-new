@@ -29,177 +29,185 @@ class _HomePageState extends State<HomePage> {
     final userProvider = Provider.of<CRUDUser>(context);
 
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Greeting
-              Text(
-                'Welcome, ${userProvider.currentUser.firstName} ${userProvider.currentUser.lastName}!',
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 10.h),
-              const Divider(),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Refresh user data and projects
+          await userProvider.getCurrentUser();
+          await Provider.of<CRUDProject>(context, listen: false).fetchItems();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Greeting
+                Text(
+                  'Welcome, ${userProvider.currentUser.firstName} ${userProvider.currentUser.lastName}!',
+                  style:
+                      const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 10.h),
+                const Divider(),
 
-              Image.asset(
-                "lib/asset/banner.png",
-                width: MediaQuery.sizeOf(context).width,
-                fit: BoxFit.fitWidth,
-              ),
+                Image.asset(
+                  "lib/asset/banner.png",
+                  width: MediaQuery.sizeOf(context).width,
+                  fit: BoxFit.fitWidth,
+                ),
 
-              _buildSectionTitle(context, "Services"),
-              Image.asset(
-                "lib/asset/service1.png",
-                width: MediaQuery.sizeOf(context).width,
-                fit: BoxFit.fitWidth,
-              ),
-              Image.asset(
-                "lib/asset/service2.png",
-                width: MediaQuery.sizeOf(context).width,
-                fit: BoxFit.fitWidth,
-              ),
-              const Divider(),
+                _buildSectionTitle(context, "Services"),
+                Image.asset(
+                  "lib/asset/service1.png",
+                  width: MediaQuery.sizeOf(context).width,
+                  fit: BoxFit.fitWidth,
+                ),
+                Image.asset(
+                  "lib/asset/service2.png",
+                  width: MediaQuery.sizeOf(context).width,
+                  fit: BoxFit.fitWidth,
+                ),
+                const Divider(),
 
-              _buildSectionTitle(context, 'Quick Access'),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Column(
-                    children: [
-                      IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AddApp(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.app_shortcut_outlined,
-                            size: 40,
-                          )),
-                      const Text(
-                        "Add an App",
-                        style: TextStyle(
-                            color: Colors.black, fontWeight: FontWeight.w400),
-                      )
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const RepositoryPage(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.storage_rounded,
-                            size: 40,
-                          )),
-                      const Text(
-                        "Add a Repository",
-                        style: TextStyle(
-                            color: Colors.black, fontWeight: FontWeight.w400),
-                      )
-                    ],
-                  ),
-                ],
-              ),
-
-              const Divider(),
-              _buildSectionTitle(context, 'Browse Repositories'),
-              _buildCategories(),
-              SizedBox(height: 16.h),
-              _buildSectionTitle(context, 'Latest Projects'),
-              Consumer<CRUDProject>(
-                builder: (context, projectProvider, _) {
-                  if (projectProvider.items.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20.h),
-                        child: Text(
-                          'No apps have been published yet',
+                _buildSectionTitle(context, 'Quick Access'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Column(
+                      children: [
+                        IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AddApp(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.app_shortcut_outlined,
+                              size: 40,
+                            )),
+                        const Text(
+                          "Add an App",
                           style: TextStyle(
-                            fontSize: 16.sp,
-                            color: Colors.grey[600],
+                              color: Colors.black, fontWeight: FontWeight.w400),
+                        )
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const RepositoryPage(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.storage_rounded,
+                              size: 40,
+                            )),
+                        const Text(
+                          "Add a Repository",
+                          style: TextStyle(
+                              color: Colors.black, fontWeight: FontWeight.w400),
+                        )
+                      ],
+                    ),
+                  ],
+                ),
+
+                const Divider(),
+                _buildSectionTitle(context, 'Browse Repositories'),
+                _buildCategories(),
+                SizedBox(height: 16.h),
+                _buildSectionTitle(context, 'Latest Projects'),
+                Consumer<CRUDProject>(
+                  builder: (context, projectProvider, _) {
+                    if (projectProvider.items.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20.h),
+                          child: Text(
+                            'No apps have been published yet',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ),
+                      );
+                    }
+                    return SizedBox(
+                      height: 200,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: projectProvider.items.length > 3
+                            ? 3
+                            : projectProvider.items.length,
+                        itemBuilder: (context, index) {
+                          final project = projectProvider.items[index];
+                          return InkWell(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AppDetailPage(app: project),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 5.w),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  SizedBox(
+                                    height: 110.h,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      child: project.logoUrl != null &&
+                                              project.logoUrl!.isNotEmpty
+                                          ? Image.network(
+                                              project.logoUrl!,
+                                              width: 110.w,
+                                              fit: BoxFit.fitWidth,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Image.asset(
+                                                  'lib/asset/logo.png',
+                                                  width: 110.w,
+                                                  fit: BoxFit.fitWidth,
+                                                );
+                                              },
+                                            )
+                                          : Image.asset(
+                                              'lib/asset/logo.png',
+                                              width: 110.w,
+                                              fit: BoxFit.fitWidth,
+                                            ),
+                                    ),
+                                  ),
+                                  Text(
+                                    project.name,
+                                    style: const TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold),
+                                  )
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     );
-                  }
-                  return SizedBox(
-                    height: 200,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: projectProvider.items.length > 3
-                          ? 3
-                          : projectProvider.items.length,
-                      itemBuilder: (context, index) {
-                        final project = projectProvider.items[index];
-                        return InkWell(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AppDetailPage(app: project),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 5.w),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                SizedBox(
-                                  height: 110.h,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    child: project.logoUrl != null &&
-                                            project.logoUrl!.isNotEmpty
-                                        ? Image.network(
-                                            project.logoUrl!,
-                                            width: 110.w,
-                                            fit: BoxFit.fitWidth,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                              return Image.asset(
-                                                'lib/asset/logo.png',
-                                                width: 110.w,
-                                                fit: BoxFit.fitWidth,
-                                              );
-                                            },
-                                          )
-                                        : Image.asset(
-                                            'lib/asset/logo.png',
-                                            width: 110.w,
-                                            fit: BoxFit.fitWidth,
-                                          ),
-                                  ),
-                                ),
-                                Text(
-                                  project.name,
-                                  style: const TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold),
-                                )
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ],
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),

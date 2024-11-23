@@ -179,7 +179,6 @@ class _AppStorePageState extends State<AppStorePage> {
     }
 
     return Scaffold(
-   
       body: RefreshIndicator(
         onRefresh: _fetchApps,
         child: Column(

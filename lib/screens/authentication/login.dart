@@ -3,6 +3,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:utb_codebase/screens/authentication/auth_wrapper.dart';
 
 import '../../core/crudModel/repo_crud.dart';
 import '../../core/crudModel/user_crud.dart';
@@ -180,7 +181,7 @@ class _LoginPageState extends State<LoginPage> {
                     repoProvider.fetchItems();
 
                     Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => MyMain()),
+                      MaterialPageRoute(builder: (context) => AuthWrapper()),
                     );
                   }
                 } on FirebaseAuthException catch (e) {

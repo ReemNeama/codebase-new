@@ -57,7 +57,7 @@ class User {
       lastName: data['lastName'] ?? '',
       profileImageUrl: data['profileImageUrl'],
       phoneNumber: data['phoneNumber'],
-      studentId: data['studentId'],
+      studentId: data['studentId'] ?? "00000000",
       bio: data['bio'],
       skills: List<String>.from(data['skills'] ?? []),
       programmingLanguages:
@@ -82,11 +82,12 @@ class User {
       studentId: data['studentId'],
       bio: data['bio'],
       skills: List<String>.from(data['skills'] ?? []),
-      programmingLanguages: List<String>.from(data['programmingLanguages'] ?? []),
-      createdAt: data['createdAt'] != null 
+      programmingLanguages:
+          List<String>.from(data['programmingLanguages'] ?? []),
+      createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: data['updatedAt'] != null 
+      updatedAt: data['updatedAt'] != null
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
     );
@@ -147,7 +148,8 @@ class User {
       studentId: studentId ?? this.studentId,
       bio: bio ?? this.bio,
       skills: skills ?? List<String>.from(this.skills),
-      programmingLanguages: programmingLanguages ?? List<String>.from(this.programmingLanguages),
+      programmingLanguages:
+          programmingLanguages ?? List<String>.from(this.programmingLanguages),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

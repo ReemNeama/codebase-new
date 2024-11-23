@@ -15,7 +15,8 @@ class CRUDUser extends ChangeNotifier {
   final AuthService authenticator = AuthService();
 
   late List<User> items;
-  late User currentUser;
+  User currentUser = User.empty();
+
   Future<List<User>> fetchItems() async {
     var result = await _api.getDataCollection();
     items = result.docs
@@ -24,20 +25,22 @@ class CRUDUser extends ChangeNotifier {
     return items;
   }
 
-  Future<User> getCurrentUser() async {
-    currentUser = User.empty();
+  Future<User?> getCurrentUser() async {
+    try {
+      // Check if the user is authenticated first
+      var user = authenticator.getUser;
+      if (user == null) {
+        return null;
+      }
 
-    // Check if the user is authenticated first
-    var user = authenticator.getUser;
-    if (user == null) {
-      throw Exception("User not logged in");
+      var uid = user.uid;
+      currentUser = await getItemsById(uid);
+      notifyListeners();
+      return currentUser;
+    } catch (e) {
+      print('Error getting current user: $e');
+      return null;
     }
-
-    var uid = user.uid;
-    currentUser = await getItemsById(uid);
-
-    notifyListeners();
-    return currentUser;
   }
 
   Stream<QuerySnapshot> fetchItemsAsStream() {

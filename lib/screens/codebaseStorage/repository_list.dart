@@ -79,45 +79,47 @@ class _RepositoryListState extends State<RepositoryList> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-          child: Row(
-            children: [
-              Expanded(child: _buildSearchBar()),
-              SizedBox(width: 8.w),
-              IconButton(
-                icon: Icon(
-                  Icons.sort,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                onPressed: () => _showSortOptions(context),
-              ),
-            ],
-          ),
-        ),
-        if (_error != null)
+    return RefreshIndicator(
+      onRefresh: () async {
+        _pagingController.refresh();
+      },
+      child: Column(
+        children: [
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            child: Text(
-              _error!,
-              style: TextStyle(color: colorScheme.error),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+            child: Row(
+              children: [
+                Expanded(child: _buildSearchBar()),
+                SizedBox(width: 8.w),
+                IconButton(
+                  icon: Icon(
+                    Icons.sort,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: () => _showSortOptions(context),
+                ),
+              ],
             ),
           ),
-        Expanded(
-          child: _isLoading && _pagingController.itemList == null
+          if (_error != null)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Text(
+                _error!,
+                style: TextStyle(color: colorScheme.error),
+              ),
+            ),
+          Expanded(
+            child: _isLoading && _pagingController.itemList == null
               ? Center(
                   child: CircularProgressIndicator(
                     color: colorScheme.primary,
                   ),
                 )
-              : RefreshIndicator(
-                  onRefresh: () => Future.sync(() => _pagingController.refresh()),
-                  child: _buildRepositoryList(),
-                ),
-        ),
-      ],
+              : _buildRepositoryList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -257,12 +259,34 @@ class _RepositoryListState extends State<RepositoryList> {
             } else {
               // Mobile - List View
               return PagedListView<int, Repo>(
+                physics: const AlwaysScrollableScrollPhysics(),
                 pagingController: _pagingController,
                 builderDelegate: PagedChildBuilderDelegate<Repo>(
                   itemBuilder: (context, item, index) =>
                       RepositoryCard(repoModel: item),
                 ),
-                padding: const EdgeInsets.all(16),
+                firstPageErrorIndicatorBuilder: (context) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Something went wrong',
+                        style: TextStyle(fontSize: 16.sp),
+                      ),
+                      SizedBox(height: 16.h),
+                      ElevatedButton(
+                        onPressed: () => _pagingController.refresh(),
+                        child: const Text('Try Again'),
+                      ),
+                    ],
+                  ),
+                ),
+                noItemsFoundIndicatorBuilder: (context) => Center(
+                  child: Text(
+                    'No repositories found',
+                    style: TextStyle(fontSize: 16.sp),
+                  ),
+                ),
               );
             }
           },

@@ -4,7 +4,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Firebase user one-time fetch
-  User get getUser => _auth.currentUser!;
+  User? get getUser => _auth.currentUser;
 
   // Firebase user a realtime stream
   Stream<User?> get user => _auth.authStateChanges();

@@ -45,6 +45,30 @@ class Repo {
     if (userId.isEmpty) {
       throw DatabaseException('User ID is required');
     }
+    if (status.isEmpty) {
+      throw DatabaseException('Status is required');
+    }
+    if (!['Public', 'Private'].contains(status)) {
+      throw DatabaseException('Invalid status value: must be Public or Private');
+    }
+  }
+
+  factory Repo.empty() {
+    return Repo(
+      id: '',
+      storageUrl: '',
+      userId: '',
+      name: '',
+      description: '',
+      collabs: [],
+      files: [],
+      status: 'Public',  // Default to Public
+      languages: [],
+      categories: [],
+      url: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
   }
 
   factory Repo.fromFirestore(DocumentSnapshot doc) {
@@ -54,46 +78,75 @@ class Repo {
       // Parse files if they exist
       List<StorageFile> files = [];
       if (data['files'] != null) {
-        files = (data['files'] as List)
-            .map((file) => StorageFile.fromMap(file as Map<String, dynamic>))
-            .toList();
-      }
-
-      // Handle timestamps with default values if missing
-      DateTime createdAt = DateTime.now();
-      DateTime updatedAt = DateTime.now();
-      
-      try {
-        createdAt = (data['createdAt'] as Timestamp).toDate();
-      } catch (e) {
-        print('Error parsing createdAt: $e');
-      }
-      
-      try {
-        updatedAt = (data['updatedAt'] as Timestamp).toDate();
-      } catch (e) {
-        print('Error parsing updatedAt: $e');
+        try {
+          files = (data['files'] as List)
+              .map((file) => StorageFile.fromMap(file as Map<String, dynamic>))
+              .toList();
+        } catch (e) {
+          print('Error parsing files: $e');
+        }
       }
 
       return Repo(
         id: doc.id,
         storageUrl: data['storageUrl'] ?? '',
         userId: data['userId'] ?? '',
-        name: data['name'] ?? 'Untitled Repository',
-        description: data['description'] ?? 'No description provided',
+        name: data['name'] ?? '',
+        description: data['description'] ?? '',
         collabs: List<String>.from(data['collabs'] ?? []),
-        status: data['status'] ?? 'private',
+        files: files,
+        status: data['status'] ?? 'Public',  // Default to Public
         languages: List<String>.from(data['languages'] ?? []),
         categories: List<String>.from(data['categories'] ?? []),
-        files: files,
         url: data['url'],
-        createdAt: createdAt,
-        updatedAt: updatedAt,
+        createdAt: data['createdAt'] != null 
+            ? (data['createdAt'] as Timestamp).toDate()
+            : DateTime.now(),
+        updatedAt: data['updatedAt'] != null 
+            ? (data['updatedAt'] as Timestamp).toDate()
+            : DateTime.now(),
       );
     } catch (e) {
-      print('Detailed parsing error: $e');
-      throw DatabaseException('Failed to parse repository data: ${e.toString()}');
+      print('Error parsing repository data: $e');
+      return Repo.empty();
     }
+  }
+
+  factory Repo.fromMap(Map<String, dynamic>? data, String id) {
+    if (data == null) {
+      return Repo.empty();
+    }
+
+    List<StorageFile> files = [];
+    if (data['files'] != null) {
+      try {
+        files = (data['files'] as List)
+            .map((file) => StorageFile.fromMap(file as Map<String, dynamic>))
+            .toList();
+      } catch (e) {
+        print('Error parsing files: $e');
+      }
+    }
+
+    return Repo(
+      id: id,
+      storageUrl: data['storageUrl'] ?? '',
+      userId: data['userId'] ?? '',
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      collabs: List<String>.from(data['collabs'] ?? []),
+      files: files,
+      status: data['status'] ?? 'Public',  // Default to Public
+      languages: List<String>.from(data['languages'] ?? []),
+      categories: List<String>.from(data['categories'] ?? []),
+      url: data['url'],
+      createdAt: data['createdAt'] != null 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: data['updatedAt'] != null 
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
+    );
   }
 
   Map<String, dynamic> toMap() {
@@ -133,7 +186,7 @@ class Repo {
       categories: categories,
       files: files ?? this.files,
       url: url ?? this.url,
-      createdAt: createdAt,
+      createdAt: createdAt ?? DateTime.now(),
       updatedAt: updatedAt ?? DateTime.now(),
     );
   }

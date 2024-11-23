@@ -29,82 +29,88 @@ class _MyRepositoryState extends State<MyRepository> {
     return Column(
       children: [
         Expanded(
-          child: FutureBuilder<List<Repo>>(
-            future: repoProvider.fetchItems(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                print('Repository Error: ${snapshot.error}');
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Failed to load repositories",
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {});  // Retry loading
-                        },
-                        child: Text('Retry'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              }
-
-              if (!snapshot.hasData || snapshot.data == null) {
-                return Center(child: Text("No data available"));
-              }
-
-              List<Repo> userRepos = snapshot.data!
-                  .where((repo) => repo.userId == currentUserId)
-                  .toList();
-
-              if (userRepos.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
+          child: RefreshIndicator(
+            onRefresh: () async {
+              setState(() {});  // This will trigger a rebuild and refetch
+            },
+            child: FutureBuilder<List<Repo>>(
+              future: repoProvider.fetchItems(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  print('Repository Error: ${snapshot.error}');
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          "You don't have any repositories yet.\nCreate your very first repository.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 18.0),
+                          "Failed to load repositories",
+                          style: TextStyle(fontSize: 16),
                         ),
-                        SizedBox(height: 16.0),
+                        SizedBox(height: 8),
                         ElevatedButton(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => RepositoryPage()),
-                            );
+                            setState(() {});  // Retry loading
                           },
-                          child: Text('Add Repository'),
+                          child: Text('Retry'),
                         ),
                       ],
                     ),
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                itemCount: userRepos.length,
-                padding: EdgeInsets.all(16.w),
-                itemBuilder: (context, index) {
-                  return RepositoryCard(
-                    repoModel: userRepos[index],
                   );
-                },
-              );
-            },
+                }
+                
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data == null) {
+                  return Center(child: Text("No data available"));
+                }
+
+                List<Repo> userRepos = snapshot.data!
+                    .where((repo) => repo.userId == currentUserId)
+                    .toList();
+
+                if (userRepos.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "You don't have any repositories yet.\nCreate your very first repository.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 18.0),
+                          ),
+                          SizedBox(height: 16.0),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => RepositoryPage()),
+                              );
+                            },
+                            child: Text('Add Repository'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: userRepos.length,
+                  padding: EdgeInsets.all(16.w),
+                  itemBuilder: (context, index) {
+                    return RepositoryCard(
+                      repoModel: userRepos[index],
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ],

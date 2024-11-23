@@ -21,82 +21,105 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   @override
+  void initState() {
+    super.initState();
+    // Fetch user data when the page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CRUDUser>().getCurrentUser();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<CRUDUser>();
     final user = userProvider.currentUser;
 
     return Scaffold(
-      body: Center(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundImage: user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
-                        ? NetworkImage(user.profileImageUrl!)
-                        : const NetworkImage(
-                            "https://placehold.jp/150x150.png",
-                          ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    user.fullName,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    user.email,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Refresh all data
+          await Future.wait([
+            context.read<CRUDUser>().getCurrentUser(),
+            context.read<CRUDProject>().fetchItems(),
+            context.read<CRUDRepo>().fetchItems(),
+            context.read<CRUDComment>().fetchItems(),
+          ]);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Center(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                     children: [
-                      FutureBuilder<List<Project>>(
-                        future: context.read<CRUDProject>().fetchItems(),
-                        builder: (context, projectSnapshot) {
-                          final projectCount = projectSnapshot.hasData
-                              ? projectSnapshot.data!
-                                  .where((project) => 
-                                    project.userId == user.id )
-                                  .length
-                              : 0;
-                          return InfoCard(
-                            label: 'Projects',
-                            value: projectCount.toString(),
-                          );
-                        },
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundImage: user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
+                            ? NetworkImage(user.profileImageUrl!)
+                            : const NetworkImage(
+                                "https://placehold.jp/150x150.png",
+                              ),
                       ),
-                      const SizedBox(width: 10),
-                      FutureBuilder<List<Repo>>(
-                        future: context.read<CRUDRepo>().fetchItems(),
-                        builder: (context, repoSnapshot) {
-                          final repoCount = repoSnapshot.hasData
-                              ? repoSnapshot.data!
-                                  .where((repo) =>
-                                      repo.userId == user.id ||
-                                      repo.collabs.contains(user.id))
-                                  .length
-                              : 0;
-                          return InfoCard(
-                            label: 'Repositories',
-                            value: repoCount.toString(),
-                          );
-                        },
+                      const SizedBox(height: 16),
+                      Text(
+                        user.fullName,
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        user.email,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FutureBuilder<List<Project>>(
+                            future: context.read<CRUDProject>().fetchItems(),
+                            builder: (context, projectSnapshot) {
+                              final projectCount = projectSnapshot.hasData
+                                  ? projectSnapshot.data!
+                                      .where((project) =>
+                                        project.userId == user.id )
+                                      .length
+                                  : 0;
+                              return InfoCard(
+                                label: 'Projects',
+                                value: projectCount.toString(),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          FutureBuilder<List<Repo>>(
+                            future: context.read<CRUDRepo>().fetchItems(),
+                            builder: (context, repoSnapshot) {
+                              final repoCount = repoSnapshot.hasData
+                                  ? repoSnapshot.data!
+                                      .where((repo) =>
+                                          repo.userId == user.id ||
+                                          repo.collabs.contains(user.id))
+                                      .length
+                                  : 0;
+                              return InfoCard(
+                                label: 'Repositories',
+                                value: repoCount.toString(),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                ],
-              ),
+                ),
+                Expanded(
+                  child: TabSection(),
+                ),
+              ],
             ),
-            Expanded(
-              child: TabSection(),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -212,113 +235,114 @@ class ReviewTab extends StatelessWidget {
 
         final projectIds = userProjects.map((p) => p.id).toList();
 
-        return FutureBuilder<List<Comment>>(
-          future: Future.wait(
-            projectIds.map((id) => commentProvider.getCommentsByProjectId(id))
-          ).then((lists) => lists.expand((list) => list).toList()),
-          builder: (context, commentSnapshot) {
-            if (commentSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+return Container();
+        //return FutureBuilder<List<Comment>>(
+        //  future: Future.wait(
+        //    projectIds.map((id) => commentProvider.getCommentsByProjectId(id))
+        //  ).then((lists) => lists.expand((list) => list).toList()),
+        //  builder: (context, commentSnapshot) {
+        //    if (commentSnapshot.connectionState == ConnectionState.waiting) {
+        //      return const Center(child: CircularProgressIndicator());
+        //    }
 
-            if (commentSnapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Error loading comments: ${commentSnapshot.error}',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              );
-            }
+        //    if (commentSnapshot.hasError) {
+        //      return Center(
+        //        child: Text(
+        //          'Error loading comments: ${commentSnapshot.error}',
+        //          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        //        ),
+        //      );
+        //    }
 
-            final comments = commentSnapshot.data ?? [];
+        //    final comments = commentSnapshot.data ?? [];
 
-            if (comments.isEmpty) {
-              return const Center(
-                child: Text('No reviews yet'),
-              );
-            }
+        //    if (comments.isEmpty) {
+        //      return const Center(
+        //        child: Text('No reviews yet'),
+        //      );
+        //    }
 
-            return ListView.builder(
-              itemCount: comments.length,
-              itemBuilder: (context, index) {
-                final comment = comments[index];
-                final project = userProjects.firstWhere(
-                  (p) => p.id == comment.projectId,
-                  orElse: () => Project(
-                    id: '',
-                    userId: '',
-                    name: 'Unknown Project',
-                    description: '',
-                    screenshotsUrl: [],
-                    status: 'Unknown',
-                    isGraduation: false,
-                    collaborators: [],
-                    downloadUrls: {},
-                    createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
-                    category: 'Unknown',
-                  ),
-                );
+        //    return ListView.builder(
+        //      itemCount: comments.length,
+        //      itemBuilder: (context, index) {
+        //        final comment = comments[index];
+        //        final project = userProjects.firstWhere(
+        //          (p) => p.id == comment.projectId,
+        //          orElse: () => Project(
+        //            id: '',
+        //            userId: '',
+        //            name: 'Unknown Project',
+        //            description: '',
+        //            screenshotsUrl: [],
+        //            status: 'Unknown',
+        //            isGraduation: false,
+        //            collaborators: [],
+        //            downloadUrls: {},
+        //            createdAt: DateTime.now(),
+        //            updatedAt: DateTime.now(),
+        //            category: 'Unknown',
+        //          ),
+        //        );
 
-                return Card(
-                  margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                currentUser.profileImageUrl ?? "https://placehold.jp/150x150.png",
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    project.name,
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  Text(
-                                    _formatDate(comment.createdAt),
-                                    style: Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Review by ${comment.userId}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: List.generate(5, (index) {
-                            return Icon(
-                              index < (comment.rating) ? Icons.star : Icons.star_border,
-                              size: 14,
-                              color: index < (comment.rating) ? Colors.amber : Colors.grey,
-                            );
-                          }),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(comment.content),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        );
+        //        return Card(
+        //          margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        //          child: Padding(
+        //            padding: const EdgeInsets.all(16),
+        //            child: Column(
+        //              crossAxisAlignment: CrossAxisAlignment.start,
+        //              children: [
+        //                Row(
+        //                  children: [
+        //                    CircleAvatar(
+        //                      backgroundImage: NetworkImage(
+        //                        currentUser.profileImageUrl ?? "https://placehold.jp/150x150.png",
+        //                      ),
+        //                    ),
+        //                    const SizedBox(width: 10),
+        //                    Expanded(
+        //                      child: Column(
+        //                        crossAxisAlignment: CrossAxisAlignment.start,
+        //                        children: [
+        //                          Text(
+        //                            project.name,
+        //                            style: Theme.of(context).textTheme.titleMedium,
+        //                          ),
+        //                          Text(
+        //                            _formatDate(comment.createdAt),
+        //                            style: Theme.of(context).textTheme.bodySmall,
+        //                          ),
+        //                        ],
+        //                      ),
+        //                    ),
+        //                  ],
+        //                ),
+        //                const SizedBox(height: 10),
+        //                Text(
+        //                  'Review by ${comment.userId}',
+        //                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        //                    fontWeight: FontWeight.bold,
+        //                  ),
+        //                ),
+        //                const SizedBox(height: 4),
+        //                Row(
+        //                  children: List.generate(5, (index) {
+        //                    return Icon(
+        //                      index < (comment.rating) ? Icons.star : Icons.star_border,
+        //                      size: 14,
+        //                      color: index < (comment.rating) ? Colors.amber : Colors.grey,
+        //                    );
+        //                  }),
+        //                ),
+        //                const SizedBox(height: 8),
+        //                Text(comment.content),
+        //              ],
+        //            ),
+        //          ),
+        //        );
+        //      },
+        //    );
+        //  },
+        //);
       },
     );
   }

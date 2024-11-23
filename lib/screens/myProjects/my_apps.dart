@@ -23,66 +23,94 @@ class _MyAppsState extends State<MyApps> {
     final projectProvider = Provider.of<CRUDProject>(context);
     final userProvider = Provider.of<CRUDUser>(context);
 
-    return FutureBuilder<List<Project>>(
-      future: projectProvider.fetchItems(),  
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        List<Project> projects = snapshot.data!.where((project) =>
-            project.userId == userProvider.currentUser.id).toList();
-
-        if (projects.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {}); // This will trigger a rebuild and refetch
+      },
+      child: FutureBuilder<List<Project>>(
+        future: projectProvider.fetchItems(),  
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "You don't have any apps yet.\n Create your very first app.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18.0),
+                    'Failed to load apps',
+                    style: TextStyle(fontSize: 16),
                   ),
-                  SizedBox(height: 16.0),
+                  SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => AddApp()),
-                      );
+                      setState(() {}); // Retry loading
                     },
-                    child: Text('Add App'),
+                    child: Text('Retry'),
                   ),
                 ],
               ),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          itemCount: projects.length,
-          itemBuilder: (context, index) {
-            return AppCard(
-              project: projects[index],
-              onDelete: () async {
-                bool confirmed = await _confirmDelete(context);
-                if (confirmed) {
-                  await projectProvider.removeItem(projects[index].id);
-                  setState(() {}); // Refresh the UI after deletion
-                }
-              },
             );
-          },
-        );
-      },
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data == null) {
+            return Center(child: Text("No data available"));
+          }
+
+          List<Project> projects = snapshot.data!.where((project) =>
+              project.userId == userProvider.currentUser.id).toList();
+
+          if (projects.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "You don't have any apps yet.\n Create your very first app.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18.0),
+                    ),
+                    SizedBox(height: 16.0),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => AddApp()),
+                        );
+                      },
+                      child: Text('Add App'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: projects.length,
+            padding: EdgeInsets.all(16.w),
+            itemBuilder: (context, index) {
+              return AppCard(
+                project: projects[index],
+                onDelete: () async {
+                  bool confirmed = await _confirmDelete(context);
+                  if (confirmed) {
+                    await projectProvider.removeItem(projects[index].id);
+                    setState(() {}); // Refresh the UI after deletion
+                  }
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 

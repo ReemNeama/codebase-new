@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/services/auth.dart';
 import '../../core/services/storage_service.dart';
 import 'login.dart';
+import 'auth_wrapper.dart'; // Import AuthWrapper
 
 class SignUpPage extends StatefulWidget {
   SignUpPage({super.key});
@@ -128,7 +129,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
       // 3. Create user profile in Firestore
       await _firestore
-          .collection('profiles')
+          .collection('users')
           .doc(userCredential.user!.uid)
           .set({
         'email': _studentIdController.text + "@utb.edu.bh",
@@ -144,12 +145,13 @@ class _SignUpPageState extends State<SignUpPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // 4. Navigate to user details page
+      // 4. Navigate to home page through AuthWrapper
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (context) => HomePage(),
+          builder: (context) => const AuthWrapper(),  // Use AuthWrapper instead of HomePage
         ),
+        (route) => false,  // Remove all previous routes from the stack
       );
     } catch (e) {
       setState(() {
