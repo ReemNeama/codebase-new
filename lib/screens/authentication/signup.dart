@@ -1,20 +1,19 @@
-// ignore_for_file: unused_field, prefer_const_constructors_in_immutables, library_private_types_in_public_api, prefer_const_constructors, use_key_in_widget_constructors, prefer_const_literals_to_create_immutables, prefer_const_declarations, avoid_print, prefer_interpolation_to_compose_strings, non_constant_identifier_names, no_leading_underscores_for_local_identifiers, use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../core/services/storage_service.dart';
 import '../../core/auth/auth_provider.dart';
 import 'login.dart';
 import 'auth_wrapper.dart';
 
 class SignUpPage extends StatefulWidget {
-  SignUpPage({super.key});
+  const SignUpPage({super.key});
 
   @override
-  _SignUpPageState createState() => _SignUpPageState();
+  State<SignUpPage> createState() => _SignUpPageState();
 }
 
 class _SignUpPageState extends State<SignUpPage> {
@@ -22,77 +21,60 @@ class _SignUpPageState extends State<SignUpPage> {
   int _currentStep = 0;
   bool _isLoading = false;
   String? _errorMessage;
-
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _studentIdController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController();
-  final TextEditingController _phoneNumberController = TextEditingController();
   File? _profileImage;
   bool _isObscure = true;
   bool _isObscureConfirm = true;
 
-  final StorageService _storageService = StorageService();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late final Map<String, TextEditingController> _controllers;
 
   @override
   void initState() {
     super.initState();
-    _emailController.addListener(_updateStudentId);
+    _controllers = {
+      'email': TextEditingController()..addListener(_updateStudentId),
+      'studentId': TextEditingController(),
+      'password': TextEditingController(),
+      'confirmPassword': TextEditingController(),
+      'firstName': TextEditingController(),
+      'lastName': TextEditingController(),
+      'bio': TextEditingController(),
+      'phoneNumber': TextEditingController(),
+    };
   }
 
   @override
   void dispose() {
-    _emailController.removeListener(_updateStudentId);
-    _emailController.dispose();
-    _studentIdController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _bioController.dispose();
-    _phoneNumberController.dispose();
+    _controllers['email']?.removeListener(_updateStudentId);
+    _controllers.values.forEach((controller) => controller.dispose());
     super.dispose();
   }
 
   void _updateStudentId() {
-    String email = _emailController.text.toLowerCase();
+    final email = _controllers['email']?.text.toLowerCase() ?? '';
     if (email.contains('@')) {
-      String studentId = email.split('@')[0];
-      _studentIdController.text = studentId;
+      _controllers['studentId']?.text = email.split('@')[0];
     }
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
+    final image = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (image != null) {
-      setState(() {
-        _profileImage = File(image.path);
-      });
+      setState(() => _profileImage = File(image.path));
     }
   }
 
   bool _canContinue() {
-    switch (_currentStep) {
-      case 0:
-        return _studentIdController.text.isNotEmpty &&
-            _firstNameController.text.isNotEmpty &&
-            _lastNameController.text.isNotEmpty;
-      case 1:
-        return _passwordController.text.isNotEmpty &&
-            _confirmPasswordController.text.isNotEmpty &&
-            _passwordController.text == _confirmPasswordController.text;
-      case 2:
-        return _profileImage != null;
-      default:
-        return false;
-    }
+    return switch (_currentStep) {
+      0 => _controllers['studentId']?.text.isNotEmpty == true &&
+          _controllers['firstName']?.text.isNotEmpty == true &&
+          _controllers['lastName']?.text.isNotEmpty == true,
+      1 => _controllers['password']?.text.isNotEmpty == true &&
+          _controllers['confirmPassword']?.text.isNotEmpty == true &&
+          _controllers['password']?.text ==
+              _controllers['confirmPassword']?.text,
+      2 => _profileImage != null,
+      _ => false
+    };
   }
 
   Future<void> _register() async {
@@ -115,31 +97,27 @@ class _SignUpPageState extends State<SignUpPage> {
 
       // 1. Create user account
       await authProvider.signUpWithEmailAndPassword(
-        _studentIdController.text + "@utb.edu.bh",
-        _passwordController.text,
-      );
+          "${_controllers['studentId']!.text}@utb.edu.bh", "");
+      //TODO
 
       final user = authProvider.state.user;
       if (user == null) throw Exception('Failed to create user account');
 
       // 2. Upload profile picture
-      final String profilePictureUrl =
-          await _storageService.uploadProfilePicture(
-        user.uid,
-        _profileImage!,
-      );
 
       // 3. Create user profile in Firestore
-      await _firestore.collection('users').doc(user.uid).set({
-        'email': _studentIdController.text + "@utb.edu.bh",
-        'firstName': _firstNameController.text,
-        'lastName': _lastNameController.text,
-        'studentId': _studentIdController.text,
-        'profileImageUrl': profilePictureUrl,
-        'phoneNumber': _phoneNumberController.text.isNotEmpty
-            ? _phoneNumberController.text
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'email': "${_controllers['studentId']?.text}@utb.edu.bh",
+        'firstName': _controllers['firstName']?.text,
+        'lastName': _controllers['lastName']?.text,
+        'studentId': _controllers['studentId']?.text,
+        'profileImageUrl': "",
+        'phoneNumber': _controllers['phoneNumber']!.text.isNotEmpty
+            ? _controllers['phoneNumber']?.text
             : null,
-        'bio': _bioController.text.isNotEmpty ? _bioController.text : null,
+        'bio': _controllers['bio']!.text.isNotEmpty
+            ? _controllers['bio']?.text
+            : null,
         'skills': [], // Initialize as empty list, can be updated later
         'programmingLanguages':
             [], // Initialize as empty list, can be updated later
@@ -256,7 +234,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SizedBox(
           width: 300,
           child: TextFormField(
-            controller: _studentIdController,
+            controller: _controllers['studentId'],
             decoration: InputDecoration(
               labelText: "Student ID",
               labelStyle: TextStyle(
@@ -274,7 +252,7 @@ class _SignUpPageState extends State<SignUpPage> {
             ),
             onChanged: (value) {
               setState(() {
-                _emailController.text = value;
+                _controllers['email']?.text = value;
               });
             },
             validator: (value) {
@@ -295,7 +273,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SizedBox(
           width: 300,
           child: TextFormField(
-            controller: _firstNameController,
+            controller: _controllers['firstName'],
             decoration: InputDecoration(
               labelText: "First Name",
               labelStyle: TextStyle(
@@ -322,7 +300,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SizedBox(
           width: 300,
           child: TextFormField(
-            controller: _lastNameController,
+            controller: _controllers['lastName'],
             decoration: InputDecoration(
               labelText: "Last Name",
               labelStyle: TextStyle(
@@ -349,7 +327,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SizedBox(
           width: 300,
           child: TextFormField(
-            controller: _emailController,
+            controller: _controllers['email'],
             enabled: false,
             decoration: InputDecoration(
               labelText: "Email",
@@ -372,7 +350,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SizedBox(
           width: 300,
           child: TextFormField(
-            controller: _phoneNumberController,
+            controller: _controllers['phoneNumber'],
             decoration: InputDecoration(
               labelText: "Phone Number",
               labelStyle: TextStyle(
@@ -393,7 +371,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SizedBox(
           width: 300,
           child: TextFormField(
-            controller: _bioController,
+            controller: _controllers['bio'],
             decoration: InputDecoration(
               labelText: "Bio",
               labelStyle: TextStyle(
@@ -420,7 +398,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SizedBox(
           width: 300,
           child: TextFormField(
-            controller: _passwordController,
+            controller: _controllers['password'],
             obscureText: _isObscure,
             decoration: InputDecoration(
               labelText: "Password",
@@ -452,7 +430,7 @@ class _SignUpPageState extends State<SignUpPage> {
         SizedBox(
           width: 300,
           child: TextFormField(
-            controller: _confirmPasswordController,
+            controller: _controllers['confirmPassword'],
             obscureText: _isObscureConfirm,
             decoration: InputDecoration(
               labelText: "Confirm Password",
@@ -479,7 +457,7 @@ class _SignUpPageState extends State<SignUpPage> {
               ),
             ),
             validator: (value) {
-              if (value != _passwordController.text) {
+              if (value != _controllers['password']?.text) {
                 return 'Passwords do not match';
               }
               return null;

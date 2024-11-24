@@ -1,8 +1,8 @@
 // ignore_for_file: avoid_print
 
+import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'storage_file.dart';
-import 'exceptions.dart';
 
 class Repo {
   final String id;
@@ -35,25 +35,6 @@ class Repo {
     required this.updatedAt,
   });
 
-  void validate() {
-    if (name.trim().isEmpty) {
-      throw DatabaseException('Repository name cannot be empty');
-    }
-    if (description.trim().isEmpty) {
-      throw DatabaseException('Repository description cannot be empty');
-    }
-    if (userId.isEmpty) {
-      throw DatabaseException('User ID is required');
-    }
-    if (status.isEmpty) {
-      throw DatabaseException('Status is required');
-    }
-    if (!['Public', 'Private'].contains(status)) {
-      throw DatabaseException(
-          'Invalid status value: must be Public or Private');
-    }
-  }
-
   factory Repo.empty() {
     return Repo(
       id: '',
@@ -84,7 +65,7 @@ class Repo {
               .map((file) => StorageFile.fromMap(file as Map<String, dynamic>))
               .toList();
         } catch (e) {
-          print('Error parsing files: $e');
+          log('Error parsing files: $e');
         }
       }
 
@@ -96,19 +77,15 @@ class Repo {
         description: data['description'] ?? '',
         collabs: List<String>.from(data['collabs'] ?? []),
         files: files,
-        status: data['status'] ?? 'Public', // Default to Public
+        status: data['status'] ?? 'Public',
         languages: List<String>.from(data['languages'] ?? []),
         categories: List<String>.from(data['categories'] ?? []),
         url: data['url'],
-        createdAt: data['createdAt'] != null
-            ? (data['createdAt'] as Timestamp).toDate()
-            : DateTime.now(),
-        updatedAt: data['updatedAt'] != null
-            ? (data['updatedAt'] as Timestamp).toDate()
-            : DateTime.now(),
+        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       );
     } catch (e) {
-      print('Error parsing repository data: $e');
+      log('Error parsing repository data: $e');
       return Repo.empty();
     }
   }
@@ -125,7 +102,7 @@ class Repo {
             .map((file) => StorageFile.fromMap(file as Map<String, dynamic>))
             .toList();
       } catch (e) {
-        print('Error parsing files: $e');
+        log('Error parsing files: $e');
       }
     }
 
@@ -137,16 +114,12 @@ class Repo {
       description: data['description'] ?? '',
       collabs: List<String>.from(data['collabs'] ?? []),
       files: files,
-      status: data['status'] ?? 'Public', // Default to Public
+      status: data['status'] ?? 'Public',
       languages: List<String>.from(data['languages'] ?? []),
       categories: List<String>.from(data['categories'] ?? []),
       url: data['url'],
-      createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      updatedAt: data['updatedAt'] != null
-          ? (data['updatedAt'] as Timestamp).toDate()
-          : DateTime.now(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 

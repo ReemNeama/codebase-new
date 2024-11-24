@@ -7,7 +7,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -410,85 +409,48 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
     );
   }
 
-  Future<void> uploadFile(String folderPath) async {
-    final pickedFile =
-        await FilePicker.platform.pickFiles(allowMultiple: false);
-    if (pickedFile != null) {
-      final file = File(pickedFile.files.single.path!);
-      final fileName = path.basename(file.path);
-      final storageRef = FirebaseStorage.instance.ref('$folderPath/$fileName');
-
-      try {
-        final uploadTask = storageRef.putFile(file);
-
-        // Handle upload progress (optional)
-        uploadTask.snapshotEvents.listen((snapshot) {
-          final progress =
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          print('Upload is ${progress.toStringAsFixed(0)}% complete.');
-        });
-
-        // Handle upload completion and metadata update
-        final snapshot = await uploadTask;
-        final downloadUrl = await snapshot.ref.getDownloadURL();
-        final metadata =
-            SettableMetadata(customMetadata: {'status': 'uploaded'});
-        await snapshot.ref.updateMetadata(metadata);
-
-        // Create a new OurOwnFile object with metadata
-        final newFile = OurOwnFile(
-            pickedFile.files.single.name, await snapshot.ref.getMetadata());
-
-        // Add the new file to the files list and update UI
-        setState(() {
-          files.add(newFile);
-          fullSize += newFile.data.size!;
-          getFullSize();
-        });
-
-        print('File uploaded successfully: $downloadUrl');
-      } on FirebaseException catch (e) {
-        print('Error uploading file: $e');
-      }
-    } else {
-      print('No file selected.');
-    }
-  }
-
-  String formatFileSize(int bytes) {
-    if (bytes < 1024) {
-      return '$bytes B';
-    } else if (bytes < 1048576) {
-      return '${bytes / 1024} KB';
-    } else {
-      return "0";
-    }
-  }
-
-  Future<void> downloadFile(OurOwnFile file) async {
+  Future<void> uploadFile() async {
     try {
       setState(() {
         isLoading = true;
         error = null;
       });
 
-      final fileRef =
-          FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
-      final url = await fileRef.getDownloadURL();
-
-      // Launch URL in browser for download
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(Uri.parse(url));
-      } else {
-        throw 'Could not launch download URL';
+      FilePickerResult? result = await FilePicker.platform.pickFiles();
+      if (result == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
       }
+
+      File file = File(result.files.single.path!);
+      String fileName = path.basename(file.path);
+      String filePath = '$currentPath/$fileName';
+
+      final storageRef = FirebaseStorage.instance.ref().child(filePath);
+      await storageRef.putFile(file);
+
+      await listFilesInFolder(currentPath, rootFolder);
     } catch (e) {
       setState(() {
-        error = 'Error downloading file: $e';
+        error = 'Error uploading file: $e';
       });
     } finally {
       setState(() {
         isLoading = false;
+      });
+    }
+  }
+
+  Future<void> downloadFile(OurOwnFile file) async {
+    try {
+      final storageRef = FirebaseStorage.instance.ref().child('$currentPath/${file.name}');
+      final url = await storageRef.getDownloadURL();
+      await launchUrl(Uri.parse(url));
+    } catch (e) {
+      setState(() {
+        error = 'Error downloading file: $e';
       });
     }
   }
@@ -500,11 +462,9 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
         error = null;
       });
 
-      final fileRef =
-          FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
-      await fileRef.delete();
+      final storageRef = FirebaseStorage.instance.ref().child('$currentPath/${file.name}');
+      await storageRef.delete();
 
-      // Refresh the current directory
       await listFilesInFolder(currentPath, rootFolder);
     } catch (e) {
       setState(() {
@@ -517,440 +477,8 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
     }
   }
 
-  Future<void> renameFile(OurOwnFile file, String newName) async {
-    try {
-      setState(() {
-        isLoading = true;
-        error = null;
-      });
-
-      final oldFileRef =
-          FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
-      final newFileRef =
-          FirebaseStorage.instance.ref().child("$currentPath/$newName");
-
-      // Download old file data
-      final data = await oldFileRef.getData();
-      if (data != null) {
-        // Upload to new location
-        await newFileRef.putData(
-          data,
-          SettableMetadata(
-            contentType: file.data.contentType,
-            customMetadata: file.data.customMetadata,
-          ),
-        );
-        // Delete old file
-        await oldFileRef.delete();
-      }
-
-      // Refresh the current directory
-      await listFilesInFolder(currentPath, rootFolder);
-    } catch (e) {
-      setState(() {
-        error = 'Error renaming file: $e';
-      });
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _showFileOptionsDialog(OurOwnFile file) {
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('File Options'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ListTile(
-                leading: Icon(Icons.download),
-                title: Text('Download'),
-                onTap: () {
-                  Navigator.pop(context);
-                  downloadFile(file);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.drive_file_rename_outline),
-                title: Text('Rename'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showFileRenameDialog(file);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.delete_outline, color: Colors.red),
-                title: Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showFileDeleteConfirmationDialog(file);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showFileRenameDialog(OurOwnFile file) {
-    final TextEditingController nameController =
-        TextEditingController(text: file.name);
-    final extension = path.extension(file.name);
-    final baseName = path.basenameWithoutExtension(file.name);
-    nameController.text = baseName;
-    nameController.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: baseName.length,
-    );
-
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Rename File'),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: 'File Name',
-              hintText: 'Enter new file name',
-              suffixText: extension,
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () => Navigator.pop(context),
-            ),
-            TextButton(
-              child: Text('Rename'),
-              onPressed: () {
-                final newName = nameController.text + extension;
-                if (newName.isNotEmpty && newName != file.name) {
-                  Navigator.pop(context);
-                  renameFile(file, newName);
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showFileDeleteConfirmationDialog(OurOwnFile file) {
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Delete File'),
-          content: Text(
-            'Are you sure you want to delete "${file.name}"?\nThis action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () => Navigator.pop(context),
-            ),
-            TextButton(
-              child: Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                deleteFile(file);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildFolderList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Back button and current path
-        if (!rootFolder)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8.r),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.arrow_back, size: 20),
-                  onPressed: goBackOneFolder,
-                  tooltip: 'Go back',
-                  padding: EdgeInsets.all(8.r),
-                  constraints: BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        TextButton.icon(
-                          icon: Icon(Icons.home, size: 16),
-                          label:
-                              Text('Root', style: TextStyle(fontSize: 12.sp)),
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 8.r),
-                          ),
-                          onPressed: () {
-                            navigateToPath(
-                                "repository/${widget.repository.name}");
-                          },
-                        ),
-                        ...getBreadcrumbItems().asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final item = entry.value;
-                          return Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.chevron_right, size: 16),
-                              TextButton(
-                                onPressed: () {
-                                  String path =
-                                      "repository/${getBreadcrumbItems().sublist(0, index + 1).join('/')}";
-                                  navigateToPath(path);
-                                },
-                                style: TextButton.styleFrom(
-                                  padding:
-                                      EdgeInsets.symmetric(horizontal: 8.r),
-                                ),
-                                child: Text(
-                                  item,
-                                  style: TextStyle(
-                                    fontSize: 12.sp,
-                                    color: index ==
-                                            getBreadcrumbItems().length - 1
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .onSurface,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-        // Folders grid
-        if (folders.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 8.r),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Folders',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.of(context).size.width ~/
-                        100, // Smaller tiles
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio:
-                        0.85, // Slightly taller than wide for the name
-                  ),
-                  itemCount: folders.length,
-                  itemBuilder: (context, index) {
-                    final folder = folders[index];
-                    return InkWell(
-                      onTap: () => navigateToPath(folder.path),
-                      borderRadius: BorderRadius.circular(6.r),
-                      child: Container(
-                        padding: EdgeInsets.all(4.r),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .outline
-                                .withOpacity(0.5),
-                            width: 0.5,
-                          ),
-                          borderRadius: BorderRadius.circular(6.r),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Icon(
-                                  Icons.folder,
-                                  size: 32,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                Positioned(
-                                  top: -8,
-                                  right: -8,
-                                  child: IconButton(
-                                    icon: Icon(Icons.more_vert, size: 16),
-                                    padding: EdgeInsets.zero,
-                                    constraints: BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    onPressed: () =>
-                                        _showFolderOptionsDialog(folder),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 4.h),
-                            Text(
-                              folder.name,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 11.sp),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-
-        // Files list
-        if (files.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 8.r),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Files',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: files.length,
-                  itemBuilder: (context, index) {
-                    final file = files[index];
-                    return ListTile(
-                      dense: true,
-                      visualDensity: VisualDensity.compact,
-                      leading: Icon(
-                        _getFileIcon(file.name),
-                        size: 20,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      title: Text(
-                        file.name,
-                        style: TextStyle(fontSize: 12.sp),
-                      ),
-                      subtitle: Text(
-                        formatFileSize(file.data.size ?? 0),
-                        style: TextStyle(fontSize: 10.sp),
-                      ),
-                      trailing: IconButton(
-                        icon: Icon(Icons.more_vert, size: 18),
-                        onPressed: () => _showFileOptionsDialog(file),
-                        constraints: BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-
-        if (folders.isEmpty && files.isEmpty)
-          Center(
-            child: Padding(
-              padding: EdgeInsets.all(24.r),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.folder_open,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    'This folder is empty',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  IconData _getFileIcon(String fileName) {
-    final extension = path.extension(fileName).toLowerCase();
-    switch (extension) {
-      case '.pdf':
-        return Icons.picture_as_pdf;
-      case '.jpg':
-      case '.jpeg':
-      case '.png':
-      case '.gif':
-        return Icons.image;
-      case '.doc':
-      case '.docx':
-        return Icons.description;
-      case '.xls':
-      case '.xlsx':
-        return Icons.table_chart;
-      case '.txt':
-        return Icons.article;
-      default:
-        return Icons.insert_drive_file;
-    }
+  double calculateWidth(double percentage) {
+    return setsize * (percentage / 100);
   }
 
   @override
@@ -959,320 +487,142 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
     Provider.of<CRUDUser>(context);
     setsize = MediaQuery.of(context).size.width - 50;
 
-    // double totalSizeKB = 20.0;
-// Calculate the size distribution for each type
-    double codeSize = calculateWidth(files, "code");
-    double documentsSize = calculateWidth(files, "documents");
-    double imagesSize = calculateWidth(files, "images");
-    double otherFilesSize = setsize - (codeSize + documentsSize + imagesSize);
-
-    // Calculate percentages
-    double codePercentage = (codeSize / setsize * 100).clamp(0, 100);
-    double documentsPercentage = (documentsSize / setsize * 100).clamp(0, 100);
-    double imagesPercentage = (imagesSize / setsize * 100).clamp(0, 100);
-    double otherFilesPercentage =
-        (otherFilesSize / setsize * 100).clamp(0, 100);
-
-    // Calculate widths based on percentages
-    double codeWidth = setsize * (codePercentage / 100);
-    double documentsWidth = setsize * (documentsPercentage / 100);
-    double imagesWidth = setsize * (imagesPercentage / 100);
-    double otherFilesWidth = setsize * (otherFilesPercentage / 100);
-
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.repository.name),
-        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DetailHeader(
-              title: widget.repository.name,
-              description: widget.repository.description,
-              createdAt: widget.repository.createdAt,
-              languages: widget.repository.languages,
-              categories: widget.repository.categories,
-              status: widget.repository.status,
-              padding: EdgeInsets.symmetric(horizontal: 25.w, vertical: 15.h),
-            ),
-            StatsSection(
-              stats: [
-                StatItem(
-                  label: 'Files',
-                  value: widget.repository.files.length.toString(),
-                  icon: Icons.insert_drive_file,
-                  color: Colors.blue,
-                ),
-              ],
-              padding: EdgeInsets.symmetric(horizontal: 25.w, vertical: 10.h),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 25.w, vertical: 20.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  UserSection(
-                    owner: getUserById(widget.repository.userId),
-                    collaborators: widget.repository.collabs
-                        .map((collab) => getUserByStudentID(collab))
-                        .toList(),
-                    title: 'Repository Team',
-                    canModify: false,
-                    onAddCollaborator: null,
-                    onRemoveCollaborator: null,
+      body: Column(
+        children: [
+          DetailHeader(
+            title: widget.repository.name,
+            description: widget.repository.description,
+            createdAt: widget.repository.createdAt,
+            languages: widget.repository.languages,
+            categories: widget.repository.categories,
+            status: widget.repository.status,
+            padding: EdgeInsets.symmetric(horizontal: 25.w, vertical: 15.h),
+          ),
+          StatsSection(
+            stats: [
+              StatItem(
+                label: 'Files',
+                value: widget.repository.files.length.toString(),
+                icon: Icons.insert_drive_file,
+              ),
+              StatItem(
+                label: 'Size',
+                value: '${(fullSize / 1024).toStringAsFixed(2)} KB',
+                icon: Icons.data_usage,
+              ),
+            ],
+          ),
+          UserSection(
+            owner: getUserById(widget.repository.userId),
+            collaborators: widget.repository.collabs.map((id) => getUserById(id)).toList(),
+          ),
+          Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Row(
+              children: [
+                if (!rootFolder)
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: goBackOneFolder,
                   ),
-                  SizedBox(height: 24.h),
-                  Card(
-                    elevation: 2,
-                    margin: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(16.r),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Storage',
-                                style: TextStyle(
-                                  fontSize: 18.sp,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                '$fullSize/20KB',
-                                style: TextStyle(
-                                  fontSize: 16.sp,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                Expanded(
+                  child: Text(
+                    currentPath.isEmpty ? 'Root' : getBreadcrumbItems().join(' / '),
+                    style: TextStyle(fontSize: 16.sp),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.create_new_folder),
+                  onPressed: () async {
+                    final TextEditingController controller = TextEditingController();
+                    await showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Create New Folder'),
+                        content: TextField(
+                          controller: controller,
+                          decoration: const InputDecoration(hintText: 'Folder Name'),
+                        ),
+                        actions: [
+                          TextButton(
+                            child: const Text('Cancel'),
+                            onPressed: () => Navigator.pop(context),
                           ),
-                          SizedBox(height: 16.h),
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                                maxWidth: setsize > 0 ? setsize : 0),
-                            child: Column(
-                              children: [
-                                if (codeWidth > 0)
-                                  _buildStorageBar(
-                                    'Code',
-                                    codePercentage,
-                                    Colors.blue,
-                                  ),
-                                if (documentsWidth > 0)
-                                  _buildStorageBar(
-                                    'Documents',
-                                    documentsPercentage,
-                                    Colors.green,
-                                  ),
-                                if (imagesWidth > 0)
-                                  _buildStorageBar(
-                                    'Images',
-                                    imagesPercentage,
-                                    Colors.orange,
-                                  ),
-                                if (otherFilesWidth > 0)
-                                  _buildStorageBar(
-                                    'Others',
-                                    otherFilesPercentage,
-                                    Colors.grey,
-                                  ),
-                              ],
-                            ),
+                          TextButton(
+                            child: const Text('Create'),
+                            onPressed: () {
+                              if (controller.text.isNotEmpty) {
+                                createFolder(controller.text);
+                              }
+                              Navigator.pop(context);
+                            },
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                  SizedBox(height: 24.h),
-                  Card(
-                    elevation: 2,
-                    margin: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.upload_file),
+                  onPressed: uploadFile,
+                ),
+              ],
+            ),
+          ),
+          if (error != null)
+            Padding(
+              padding: EdgeInsets.all(8.w),
+              child: Text(
+                error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          if (isLoading)
+            const Center(child: CircularProgressIndicator())
+          else
+            Expanded(
+              child: ListView(
+                children: [
+                  ...folders.map((folder) => ListTile(
+                    leading: const Icon(Icons.folder),
+                    title: Text(folder.name),
+                    onTap: () => navigateToPath(folder.path),
+                  )),
+                  ...files.map((file) => ListTile(
+                    leading: const Icon(Icons.insert_drive_file),
+                    title: Text(file.name),
+                    subtitle: Text('Size: ${(file.data.size! / 1024).toStringAsFixed(2)} KB'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Padding(
-                          padding: EdgeInsets.all(16.r),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Project Files',
-                                style: TextStyle(
-                                  fontSize: 18.sp,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.create_new_folder),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) => FolderPop(
-                                          onEnterPressed: (folderName) {
-                                            createFolder(folderName);
-                                          },
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.upload_file),
-                                    onPressed: () {
-                                      uploadFile(currentPath);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.download),
+                          onPressed: () => downloadFile(file),
                         ),
-                        _buildFolderList(),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => deleteFile(file),
+                        ),
                       ],
                     ),
-                  ),
+                  )),
                 ],
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
-
-  Widget _buildStorageBar(String label, double percentage, Color color) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 80.w, // Fixed width for label
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 14.sp),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        SizedBox(width: 8.w),
-        Expanded(
-          child: LinearProgressIndicator(
-            value: percentage / 100,
-            backgroundColor: color.withOpacity(0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
-        SizedBox(width: 8.w),
-        SizedBox(
-          width: 45.w, // Fixed width for percentage
-          child: Text(
-            '${percentage.toStringAsFixed(1)}%',
-            style: TextStyle(fontSize: 14.sp),
-            textAlign: TextAlign.end,
-          ),
-        ),
-      ],
-    );
-  }
-
-  double calculateWidth(List<OurOwnFile> files, String type) {
-    // Ensure total size does not exceed 20KB
-    int totalSize = fullSize.clamp(0, 20480); // 20480 bytes = 20KB
-
-    if (totalSize == 0) {
-      return 0.0;
-    }
-
-    // Filter files based on type and sum their sizes
-    int typeSize = files
-        .where((file) =>
-            (type == "code" &&
-                (file.name.endsWith(".cpp") ||
-                    file.name.endsWith(".h") ||
-                    file.name.endsWith(".c") ||
-                    file.name.endsWith(".py") ||
-                    file.name.endsWith(".js") ||
-                    file.name.endsWith(".java") ||
-                    file.name.endsWith(".swift"))) ||
-            (type == "documents" &&
-                (file.name.endsWith(".doc") ||
-                    file.name.endsWith(".docx") ||
-                    file.name.endsWith(".pdf") ||
-                    file.name.endsWith(".txt") ||
-                    file.name.endsWith(".xls") ||
-                    file.name.endsWith(".xlsx"))) ||
-            (type == "images" &&
-                (file.name.endsWith(".jpg") ||
-                    file.name.endsWith(".jpeg") ||
-                    file.name.endsWith(".png") ||
-                    file.name.endsWith(".gif"))))
-        .fold(0, (sum, file) => sum + file.data.size!);
-
-    // Calculate ratio of specific type size to total size
-    double ratio = typeSize / totalSize;
-    return setsize * ratio; // Multiply ratio by available width
-  }
-}
-
-class FolderPop extends StatefulWidget {
-  final Function(String) onEnterPressed;
-
-  const FolderPop({super.key, required this.onEnterPressed});
-
-  @override
-  _FolderPopState createState() => _FolderPopState();
-}
-
-class _FolderPopState extends State<FolderPop> {
-  final TextEditingController _textController = TextEditingController();
 
   @override
   void dispose() {
-    _textController.dispose();
     super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Create Folder'),
-      content: TextField(
-        controller: _textController,
-        onSubmitted: (value) {
-          widget.onEnterPressed(value);
-          Navigator.of(context).pop(); // Close the popup
-        },
-        decoration: const InputDecoration(
-          hintText: 'FolderName',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop(); // Close the popup
-          },
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            widget.onEnterPressed(_textController.text);
-            Navigator.of(context).pop(); // Close the popup
-          },
-          child: const Text('OK'),
-        ),
-      ],
-    );
   }
 }

@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_network/image_network.dart';
+import 'package:utb_codebase/screens/apps/app_details_view.dart';
 import '../../core/models/project.dart';
-import 'app_details.dart';
 import 'add_app.dart';
 
 class AppStorePage extends StatefulWidget {
@@ -104,16 +104,17 @@ class _AppStorePageState extends State<AppStorePage> {
     }
   }
 
-  List<QueryDocumentSnapshot> _filterAndSortApps(List<QueryDocumentSnapshot> apps) {
+  List<QueryDocumentSnapshot> _filterAndSortApps(
+      List<QueryDocumentSnapshot> apps) {
     var filteredApps = apps.where((doc) {
       var data = doc.data() as Map<String, dynamic>;
       var appName = data['name']?.toLowerCase() ?? '';
       var description = data['description']?.toLowerCase() ?? '';
       var category = data['category']?.toLowerCase() ?? '';
 
-      return (_selectedCategory == 'All' || 
+      return (_selectedCategory == 'All' ||
               category == _selectedCategory.toLowerCase()) &&
-             (appName.contains(_searchQuery.toLowerCase()) ||
+          (appName.contains(_searchQuery.toLowerCase()) ||
               description.contains(_searchQuery.toLowerCase()));
     }).toList();
 
@@ -127,11 +128,13 @@ class _AppStorePageState extends State<AppStorePage> {
           comparison = (dataA['name'] ?? '').compareTo(dataB['name'] ?? '');
           break;
         case 'category':
-          comparison = (dataA['category'] ?? '').compareTo(dataB['category'] ?? '');
+          comparison =
+              (dataA['category'] ?? '').compareTo(dataB['category'] ?? '');
           break;
         case 'date':
         default:
-          comparison = (dataB['updatedAt'] ?? '').compareTo(dataA['updatedAt'] ?? '');
+          comparison =
+              (dataB['updatedAt'] ?? '').compareTo(dataA['updatedAt'] ?? '');
           break;
       }
       return _sortAscending ? comparison : -comparison;
@@ -265,7 +268,9 @@ class _AppStorePageState extends State<AppStorePage> {
             ),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('project').snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('project')
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -276,7 +281,9 @@ class _AppStorePageState extends State<AppStorePage> {
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return Center(
                       child: Text(
-                        _searchQuery.isEmpty ? 'No apps available' : 'No apps match your search',
+                        _searchQuery.isEmpty
+                            ? 'No apps available'
+                            : 'No apps match your search',
                         style: textTheme.bodyLarge,
                       ),
                     );
@@ -293,9 +300,11 @@ class _AppStorePageState extends State<AppStorePage> {
                       var data = doc.data() as Map<String, dynamic>;
 
                       String appName = data['name'] ?? 'No Name';
-                      String description = data['description'] ?? 'No Description';
+                      String description =
+                          data['description'] ?? 'No Description';
                       String category = data['category'] ?? 'No Category';
-                      String imageUrl = data['logoUrl'] ?? 'https://via.placeholder.com/150';
+                      String imageUrl =
+                          data['logoUrl'] ?? 'https://via.placeholder.com/150';
                       String docId = doc.id;
 
                       return Card(
@@ -345,8 +354,11 @@ class _AppStorePageState extends State<AppStorePage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => AppDetailPage(
+                                builder: (context) => AppDetailsView(
                                   app: Project.fromMap(data, docId),
+                                  appOwner: null,
+                                  userCache: const {},
+                                  isProjectOwner: false,
                                 ),
                               ),
                             );

@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -31,7 +29,7 @@ class CRUDComment extends BaseCRUD<Comment> {
           .map((doc) => Comment.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Error getting comments by project ID: $e');
+      log('Error getting comments by project ID: $e');
       throw e;
     }
   }
@@ -48,7 +46,7 @@ class CRUDComment extends BaseCRUD<Comment> {
           .map((doc) => Comment.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Error getting comments by user ID: $e');
+      log('Error getting comments by user ID: $e');
       throw e;
     }
   }
@@ -62,7 +60,7 @@ class CRUDComment extends BaseCRUD<Comment> {
       }
       return allComments;
     } catch (e) {
-      print('Error fetching comments for projects: $e');
+      log('Error fetching comments for projects: $e');
       throw e;
     }
   }
@@ -72,7 +70,7 @@ class CRUDComment extends BaseCRUD<Comment> {
     try {
       return await getCommentsByUserId(currentUser.id);
     } catch (e) {
-      print('Error fetching comments by user: $e');
+      log('Error fetching comments by user: $e');
       throw e;
     }
   }
@@ -87,7 +85,7 @@ class CRUDComment extends BaseCRUD<Comment> {
           .get();
       return result.docs.isNotEmpty;
     } catch (e) {
-      print('Error checking user comment: $e');
+      log('Error checking user comment: $e');
       throw e;
     }
   }
@@ -100,7 +98,7 @@ class CRUDComment extends BaseCRUD<Comment> {
           comments.fold(0, (sum, comment) => sum + (comment.stars ?? 0));
       return total / comments.length;
     } catch (e) {
-      print('Error getting average rating: $e');
+      log('Error getting average rating: $e');
       throw e;
     }
   }
@@ -139,7 +137,7 @@ class CRUDComment extends BaseCRUD<Comment> {
 
       return comment.copyWith();
     } catch (e) {
-      print('Error adding comment: $e');
+      log('Error adding comment: $e');
       throw e;
     }
   }
@@ -151,7 +149,7 @@ class CRUDComment extends BaseCRUD<Comment> {
           .doc(commentId)
           .delete();
     } catch (e) {
-      print('Error deleting comment: $e');
+      log('Error deleting comment: $e');
       throw e;
     }
   }
@@ -163,7 +161,7 @@ class CRUDComment extends BaseCRUD<Comment> {
           .doc(comment.id)
           .update(comment.toMap());
     } catch (e) {
-      print('Error updating comment: $e');
+      log('Error updating comment: $e');
       throw e;
     }
   }
@@ -179,7 +177,7 @@ class CRUDComment extends BaseCRUD<Comment> {
           .map((doc) => Comment.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Error fetching comments: $e');
+      log('Error fetching comments: $e');
       throw e;
     }
   }

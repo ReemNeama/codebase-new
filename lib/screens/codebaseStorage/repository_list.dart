@@ -18,7 +18,6 @@ class RepositoryList extends StatefulWidget {
 
 class _RepositoryListState extends State<RepositoryList> {
   String _searchQuery = '';
-  bool _isLoading = false;
   String? _error;
   static const _pageSize = 20;
   final PagingController<int, Repo> _pagingController =
@@ -36,7 +35,7 @@ class _RepositoryListState extends State<RepositoryList> {
 
   Future<void> _fetchPage(int pageKey) async {
     try {
-      _isLoading = true;
+      if (!mounted) return;
       var repoProvider = Provider.of<CRUDRepo>(context, listen: false);
 
       // First, get the base items
@@ -57,9 +56,9 @@ class _RepositoryListState extends State<RepositoryList> {
                       .contains(_searchQuery.toLowerCase()))
               .toList();
 
+      if (!mounted) return;
       if (filteredItems.isEmpty && pageKey == 0) {
         setState(() {
-          _isLoading = false;
           _error = 'No repositories found';
         });
         return;
@@ -86,23 +85,25 @@ class _RepositoryListState extends State<RepositoryList> {
         final nextPageKey = pageKey + filteredItems.length;
         _pagingController.appendPage(filteredItems, nextPageKey);
       }
+
+      if (!mounted) return;
       setState(() {
-        _isLoading = false;
         _error = null;
       });
     } catch (error) {
-      setState(() {
-        _isLoading = false;
-        _error = error is Exception
-            ? error.toString()
-            : 'An unexpected error occurred while loading repositories';
-      });
-      _pagingController.error = _error;
-
       if (!mounted) return;
+      final errorMessage = error is Exception
+          ? error.toString()
+          : 'An unexpected error occurred while loading repositories';
+
+      setState(() {
+        _error = errorMessage;
+      });
+      _pagingController.error = errorMessage;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_error ?? 'Failed to load repositories'),
+          content: Text(errorMessage),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -200,7 +201,7 @@ class _RepositoryListState extends State<RepositoryList> {
               padding: EdgeInsets.all(8.0.w),
               child: Text(
                 _error!,
-                style: TextStyle(color: Colors.red),
+                style: const TextStyle(color: Colors.red),
               ),
             ),
           Expanded(
@@ -223,13 +224,14 @@ class _RepositoryListState extends State<RepositoryList> {
                       );
                     },
                     extraActions: [
-                      Icon(Icons.star, size: 16.0.sp, color: Colors.amber),
+                      const Icon(Icons.star, size: 16.0, color: Colors.amber),
                       SizedBox(width: 4.w),
-                      Text('5'),
+                      const Text('5'),
                       SizedBox(width: 16.0.w),
-                      Icon(Icons.call_split, size: 16.0.sp, color: Colors.blue),
+                      const Icon(Icons.call_split,
+                          size: 16.0, color: Colors.blue),
                       SizedBox(width: 4.0.w),
-                      Text('5'),
+                      const Text('5'),
                     ],
                   ),
                 ),

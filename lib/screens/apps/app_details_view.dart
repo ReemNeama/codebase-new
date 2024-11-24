@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:utb_codebase/core/models/project.dart';
 import 'package:utb_codebase/core/models/user.dart';
-import '../../widgets/detail_header.dart';
-import '../../widgets/gallery_section.dart';
-import '../../widgets/stats_section.dart';
-import '../../widgets/user_section.dart';
+import 'package:utb_codebase/widgets/detail_header.dart';
+import 'package:utb_codebase/widgets/gallery_section.dart';
+import 'package:utb_codebase/widgets/stats_section.dart';
+import 'package:utb_codebase/widgets/user_section.dart';
 
 class AppDetailsView extends StatelessWidget {
   final Project app;
   final User? appOwner;
   final Map<String, User> userCache;
   final bool isProjectOwner;
-  final VoidCallback onAddScreenshot;
-  final Function(String) onRemoveScreenshot;
-  final VoidCallback onAddCollaborator;
-  final Function(User) onRemoveCollaborator;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
+  final VoidCallback? onAddCollaborator;
+  final Function(User)? onRemoveCollaborator;
+  final VoidCallback? onAddScreenshot;
+  final Function(String)? onRemoveScreenshot;
 
   const AppDetailsView({
     Key? key,
@@ -24,51 +27,77 @@ class AppDetailsView extends StatelessWidget {
     required this.appOwner,
     required this.userCache,
     required this.isProjectOwner,
-    required this.onAddScreenshot,
-    required this.onRemoveScreenshot,
-    required this.onAddCollaborator,
-    required this.onRemoveCollaborator,
-    required this.onEdit,
+    this.onEdit,
+    this.onAddCollaborator,
+    this.onRemoveCollaborator,
+    this.onAddScreenshot,
+    this.onRemoveScreenshot,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(context),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHeader(context),
-            _buildTeamSection(),
-            _buildStatsSection(),
-            _buildScreenshotsSection(),
-            _buildDetailsSection(context),
-          ],
-        ),
-      ),
-    );
-  }
+    final theme = Theme.of(context);
 
-  AppBar _buildAppBar(BuildContext context) {
-    return AppBar(
-      elevation: 0,
-      backgroundColor: Theme.of(context).primaryColor,
-      title: Text(
-        app.name,
-        style: const TextStyle(
-          fontSize: 22.0,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-      actions: [
-        if (isProjectOwner)
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.white),
-            onPressed: onEdit,
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: theme.primaryColor,
+        title: Text(
+          app.name,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
           ),
-      ],
+        ),
+        actions: [
+          if (isProjectOwner)
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.white),
+              onPressed: onEdit,
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            color: theme.primaryColor.withOpacity(0.1),
+            child: Text(
+              'App Details',
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.primaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                // Implement refresh logic in parent widget
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHeader(context),
+                    _buildTeamSection(),
+                    _buildStatsSection(),
+                    _buildScreenshotsSection(),
+                    _buildDetailsSection(context),
+                  ]
+                      .animate(interval: const Duration(milliseconds: 100))
+                      .fadeIn(duration: const Duration(milliseconds: 300))
+                      .slideX(begin: -0.1, end: 0),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -99,11 +128,21 @@ class AppDetailsView extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: app.logoUrl != null
-                ? Image.network(
-                    app.logoUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: app.logoUrl!,
                     fit: BoxFit.cover,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    errorWidget: (context, url, error) => Image.asset(
+                      'lib/asset/logo.png',
+                      fit: BoxFit.cover,
+                    ),
                   )
-                : Image.asset('assets/default_logo.png'),
+                : Image.asset(
+                    'lib/asset/logo.png',
+                    fit: BoxFit.cover,
+                  ),
           ),
         ),
       ),
@@ -114,22 +153,12 @@ class AppDetailsView extends StatelessWidget {
     return UserSection(
       owner: appOwner ?? User.empty(),
       collaborators: app.collaborators.map((id) {
-        return userCache[id] ??
-            User(
-              id: id,
-              firstName: 'Unknown',
-              lastName: 'User',
-              email: '',
-              skills: const [],
-              programmingLanguages: const [],
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
+        return userCache[id] ?? User.empty();
       }).toList(),
       title: 'App Team',
       canModify: isProjectOwner,
-      onAddCollaborator: isProjectOwner ? onAddCollaborator : null,
-      onRemoveCollaborator: isProjectOwner ? onRemoveCollaborator : null,
+      onAddCollaborator: onAddCollaborator,
+      onRemoveCollaborator: onRemoveCollaborator,
     );
   }
 
@@ -163,27 +192,26 @@ class AppDetailsView extends StatelessWidget {
       title: 'Screenshots',
       imageHeight: 200,
       canModify: isProjectOwner,
-      onAddImage: isProjectOwner ? onAddScreenshot : null,
-      onRemoveImage: isProjectOwner ? onRemoveScreenshot : null,
+      onAddImage: onAddScreenshot,
+      onRemoveImage: onRemoveScreenshot,
     );
   }
 
   Widget _buildDetailsSection(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.all(16),
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Details',
-              style: TextStyle(
-                fontSize: 24,
+              style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -202,43 +230,97 @@ class AppDetailsView extends StatelessWidget {
               Icons.public,
               'Status',
               app.status,
+              color: app.getStatusColor(),
             ),
-            if (app.logoUrl != null)
+            if (app.isGraduation)
               _buildDetailRow(
-                Icons.android,
-                'APK',
-                'Available',
+                Icons.school,
+                'Type',
+                'Graduation Project',
+                color: Colors.purple,
               ),
-            if (app.downloadUrlForIphone != null)
-              _buildDetailRow(
-                Icons.apple,
-                'IPA',
-                'Available',
-              ),
+            if (app.downloadUrl != null || app.downloadUrlForIphone != null)
+              _buildDownloadButtons(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String title, String value) {
+  Widget _buildDetailRow(IconData icon, String title, String value,
+      {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
           Icon(icon, color: Colors.grey, size: 24),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Text(
             title,
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontSize: 18),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDownloadButtons(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (app.downloadUrl != null)
+            ElevatedButton.icon(
+              onPressed: () async {
+                final url = Uri.parse(app.downloadUrl!);
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url);
+                }
+              },
+              icon: const Icon(Icons.android),
+              label: const Text('Download for Android'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          if (app.downloadUrl != null && app.downloadUrlForIphone != null)
+            const SizedBox(height: 8),
+          if (app.downloadUrlForIphone != null)
+            ElevatedButton.icon(
+              onPressed: () async {
+                final url = Uri.parse(app.downloadUrlForIphone!);
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url);
+                }
+              },
+              icon: const Icon(Icons.apple),
+              label: const Text('Download for iOS'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
         ],
       ),
     );

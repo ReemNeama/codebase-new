@@ -3,12 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:utb_codebase/screens/apps/app_details_view.dart';
 import '../../core/crudModel/project_crud.dart';
 import '../../core/crudModel/user_crud.dart';
 import '../../core/models/project.dart';
+import '../../core/models/user.dart';
 import '../apps/add_app.dart';
 import '../apps/edit_app.dart';
-import '../apps/app_details.dart';
 
 class MyApps extends StatefulWidget {
   const MyApps({super.key});
@@ -182,40 +183,31 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    IconData statusIcon;
-    Color statusColor;
-    String statusText;
-
-    // Assuming status is always published for now
-    String status = "Published";
-
-    switch (status) {
-      case 'Published':
-        statusIcon = Icons.check_circle;
-        statusColor = Colors.green;
-        statusText = 'Published';
-        break;
-      case 'Pending':
-        statusIcon = Icons.hourglass_empty;
-        statusColor = Colors.orange;
-        statusText = 'Pending';
-        break;
-      case 'Rejected':
-        statusIcon = Icons.cancel;
-        statusColor = Colors.red;
-        statusText = 'Rejected';
-        break;
-      default:
-        statusIcon = Icons.help_outline;
-        statusColor = Colors.grey;
-        statusText = 'Unknown';
-    }
-
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        final userProvider = Provider.of<CRUDUser>(context, listen: false);
+        final owner = await userProvider.getItemsById(project.userId);
+
+        if (!context.mounted) return;
+
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => AppDetailPage(app: project)),
+          MaterialPageRoute(
+            builder: (context) => AppDetailsView(
+              app: project,
+              appOwner: owner,
+              userCache: {}, // This will be populated in the view
+              isProjectOwner: true,
+              onEdit: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditApp(existingProject: project),
+                  ),
+                );
+              },
+            ),
+          ),
         );
       },
       child: Card(
@@ -240,7 +232,9 @@ class AppCard extends StatelessWidget {
                     child: Text(
                       project.name,
                       style: TextStyle(
-                          fontSize: 18.0, fontWeight: FontWeight.bold),
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   PopupMenuButton<String>(
@@ -250,9 +244,9 @@ class AppCard extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => EditApp(
-                                    existingProject: project,
-                                  )),
+                            builder: (context) =>
+                                EditApp(existingProject: project),
+                          ),
                         );
                       } else if (value == 'Delete') {
                         onDelete();
@@ -274,9 +268,16 @@ class AppCard extends StatelessWidget {
               SizedBox(height: 8.0),
               Row(
                 children: <Widget>[
-                  Icon(statusIcon, size: 16.0.sp, color: statusColor),
+                  Icon(
+                    _getStatusIcon(project.status),
+                    size: 16.0.sp,
+                    color: project.getStatusColor(),
+                  ),
                   SizedBox(width: 4.w),
-                  Text(statusText, style: TextStyle(color: statusColor)),
+                  Text(
+                    project.status,
+                    style: TextStyle(color: project.getStatusColor()),
+                  ),
                 ],
               ),
             ],
@@ -284,5 +285,19 @@ class AppCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'Approved':
+        return Icons.check_circle;
+      case 'Rejected':
+        return Icons.cancel;
+      case 'In Review':
+        return Icons.hourglass_empty;
+      case 'Pending':
+      default:
+        return Icons.help_outline;
+    }
   }
 }

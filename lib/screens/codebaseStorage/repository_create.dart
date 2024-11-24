@@ -23,7 +23,6 @@ class _RepositoryPageState extends State<RepositoryPage> {
   final TextEditingController _descriptionController = TextEditingController();
 
   List<app_user.User> collabUsers = [];
-  List<String> _dropdownEmailList = [];
   app_user.User? _selectedUser;
   bool? private = false; // Set default to false (Public)
   String pripub = "Public"; // Set default to "Public"
@@ -248,7 +247,9 @@ class _RepositoryPageState extends State<RepositoryPage> {
           // Filter out users that are already collaborators or the current user
           final availableUsers = snapshot.data!.where((user) {
             final userStudentId = user.studentId;
-            if (userStudentId == null) return false;
+            if (userStudentId == null) {
+              return false;
+            }
 
             return !collabUsers
                     .any((collab) => collab.studentId == userStudentId) &&
@@ -278,11 +279,12 @@ class _RepositoryPageState extends State<RepositoryPage> {
             },
             items: availableUsers.map<DropdownMenuItem<String>>((user) {
               final studentId = user.studentId;
-              if (studentId == null)
+              if (studentId == null) {
                 return DropdownMenuItem<String>(
                   value: '',
                   child: Text('Invalid User'),
                 );
+              }
 
               return DropdownMenuItem<String>(
                 value: studentId,
