@@ -179,6 +179,11 @@ class _AppStorePageState extends State<AppStorePage> {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('App Store'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      ),
       body: RefreshIndicator(
         onRefresh: _fetchApps,
         child: Column(

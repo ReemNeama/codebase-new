@@ -101,6 +101,8 @@ class _RepositoryListState extends State<RepositoryList> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Repositories'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),

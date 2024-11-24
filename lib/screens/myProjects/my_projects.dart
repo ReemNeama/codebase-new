@@ -14,9 +14,15 @@ class MyProjects extends StatefulWidget {
 class _MyProjectsState extends State<MyProjects> {
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Column(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Projects'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      ),
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
         children: [
           PreferredSize(
             preferredSize: Size.fromHeight(48.0),
@@ -44,6 +50,7 @@ class _MyProjectsState extends State<MyProjects> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
