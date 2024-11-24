@@ -190,7 +190,7 @@ class _AppStorePageState extends State<AppStorePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AddApp(),
+                  builder: (context) => const AddAppPage(),
                 ),
               );
             },
