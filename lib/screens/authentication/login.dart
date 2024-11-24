@@ -1,232 +1,182 @@
 // ignore_for_file: prefer_const_literals_to_create_immutables, prefer_const_constructors, library_private_types_in_public_api, prefer_const_constructors_in_immutables, prefer_interpolation_to_compose_strings, use_build_context_synchronously
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:utb_codebase/screens/authentication/auth_wrapper.dart';
-
-import '../../core/crudModel/repo_crud.dart';
-import '../../core/crudModel/user_crud.dart';
-import '../../core/services/auth.dart';
-import '../../main.dart';
+import '../../core/auth/auth_provider.dart';
+import '../../core/auth/auth_state.dart';
 import 'forgot_password.dart';
 import 'signup.dart';
 
 class LoginPage extends StatefulWidget {
-  LoginPage({super.key});
+  LoginPage({Key? key}) : super(key: key);
 
   @override
   _LoginPageState createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final AuthService _authService = AuthService();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isObscure = true;
-  @override
-  void initState() {
-    super.initState();
+  String? _errorMessage;
 
-    _emailController.text = "";
-    _passwordController.text = "";
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
-  bool _isValidEmail(String input) {
-    return !input.contains('@');
+  Future<void> _handleLogin() async {
+    setState(() => _errorMessage = null);
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _errorMessage = 'Please fill in all fields');
+      return;
+    }
+
+    if (!_isValidEmail(email)) {
+      setState(() => _errorMessage = 'Please enter a valid email');
+      return;
+    }
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider.signIn(email, password);
+
+      if (authProvider.state.status == AuthStatus.error) {
+        setState(() => _errorMessage = authProvider.state.errorMessage);
+      }
+    } catch (e) {
+      setState(() => _errorMessage = e.toString());
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    var userProvider = Provider.of<CRUDUser>(context);
-    var repoProvider = Provider.of<CRUDRepo>(context);
-
     return Scaffold(
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 120,
-                child: Image(image: AssetImage('lib/asset/logo.png')),
-              ),
-              Text(
-                "UTB \nCodeBase",
-                style: TextStyle(
-                  fontSize: 35,
-                  fontWeight: FontWeight.bold,
-                ),
-              )
-            ],
-          ),
-          SizedBox(
-            width: 200,
-            child: TextFormField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                labelText: "Email",
-                labelStyle: TextStyle(
-                  color: Color.fromARGB(221, 0, 0, 0), // Label color
-                ),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(221, 0, 0, 0), width: 1),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(221, 0, 0, 0), width: 2),
-                ),
-                hintText: "bh########",
-                suffixText: "@utb.edu.bh",
-              ),
-              validator: (value) {
-                if (!_isValidEmail(value ?? "")) {
-                  return 'Please enter a valid email without @';
-                }
-                return null;
-              },
-            ),
-          ),
-          SizedBox(
-            width: 200,
-            child: TextFormField(
-              controller: _passwordController,
-              obscureText: _isObscure,
-              decoration: InputDecoration(
-                labelText: "Password",
-                labelStyle: TextStyle(
-                  color: Color.fromARGB(221, 0, 0, 0), // Label color
-                ),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(221, 0, 0, 0), width: 1),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(221, 0, 0, 0), width: 2),
-                ),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isObscure ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isObscure = !_isObscure;
-                    });
-                  },
-                ),
-              ),
-            ),
-          ),
-          SizedBox(
-            height: 20,
-          ),
-          InkWell(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 200),
-              child: Text("Forgot Password"),
-            ),
-            onTap: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => ForgotPasswordPage()),
-              );
-            },
-          ),
-          SizedBox(
-            height: 60,
-          ),
-          InkWell(
-              child: Container(
-                width: 150,
-                height: 50,
-                color: Color.fromARGB(221, 193, 5, 33),
-                child: Center(
-                  child: Text(
-                    "Login",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Card(
+                  elevation: 4.0,
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Welcome Back',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        SizedBox(height: 24.0),
+                        TextField(
+                          controller: _emailController,
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(Icons.email),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        SizedBox(height: 16.0),
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: _isObscure,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: Icon(Icons.lock),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isObscure
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isObscure = !_isObscure;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        if (_errorMessage != null) ...[
+                          SizedBox(height: 16.0),
+                          Text(
+                            _errorMessage!,
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                        SizedBox(height: 24.0),
+                        Consumer<AuthProvider>(
+                          builder: (context, auth, _) {
+                            return ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: Size(double.infinity, 36),
+                              ),
+                              onPressed: auth.state.status == AuthStatus.loading
+                                  ? null
+                                  : _handleLogin,
+                              child: auth.state.status == AuthStatus.loading
+                                  ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : Text('Login'),
+                            );
+                          },
+                        ),
+                        SizedBox(height: 16.0),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ForgotPasswordPage(),
+                              ),
+                            );
+                          },
+                          child: Text('Forgot Password?'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              // onTap: () async {
-              //   var creds = await _authService.loginWithEmail(
-              //       "${_emailController.text.trim()}@utb.edu.bh",
-              //       _passwordController.text);
-
-              //   if (creds.user != null) {
-              //     userProvider.getCurrentUser();
-              //     repoProvider.fetchItems();
-
-              //     Navigator.of(context).pushReplacement(
-              //       MaterialPageRoute(builder: (context) => MyMain()),
-              //     );
-              //   } else {
-              //     //to do error msg
-              //   }
-              // },
-              onTap: () async {
-                try {
-                  var creds = await _authService.loginWithEmail(
-                      "${_emailController.text.trim()}@utb.edu.bh",
-                      _passwordController.text);
-
-                  if (creds.user != null) {
-                    userProvider.getCurrentUser();
-                    repoProvider.fetchItems();
-
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => AuthWrapper()),
-                    );
-                  }
-                } on FirebaseAuthException catch (e) {
-                  // Show error message to the user
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Login failed: ${e.message}'),
-                      backgroundColor: Colors.red,
+                SizedBox(height: 16.0),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text("Don't have an account? "),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SignUpPage(),
+                          ),
+                        );
+                      },
+                      child: Text('Sign Up'),
                     ),
-                  );
-                } catch (e) {
-                  // Handle any other exceptions
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('An unexpected error occurred'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }),
-          SizedBox(
-            height: 10,
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text("Don't have an account?"),
-              SizedBox(
-                width: 5,
-              ),
-              InkWell(
-                child: Text(
-                  "Sign up",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  ],
                 ),
-                onTap: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => SignUpPage()),
-                  );
-                },
-              )
-            ],
-          )
-        ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }
