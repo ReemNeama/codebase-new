@@ -174,28 +174,31 @@ class TabSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      child: Column(
-        children: [
-          TabBar(
-            tabs: const [
-              Tab(text: 'Review'),
-              Tab(text: 'Information'),
-            ],
-            indicatorColor: Theme.of(context).colorScheme.primary,
-            labelColor: Theme.of(context).colorScheme.primary,
-            unselectedLabelColor: Theme.of(context).colorScheme.onSurface,
-          ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                ReviewTab(),
-                InformationTab(
-                    isEditing: false,
-                    onProfileUpdate: (bio, skills, languages) {}),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.5,
+        child: Column(
+          children: [
+            TabBar(
+              tabs: const [
+                Tab(text: 'Review'),
+                Tab(text: 'Information'),
               ],
+              indicatorColor: Theme.of(context).colorScheme.primary,
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Theme.of(context).colorScheme.onSurface,
             ),
-          ),
-        ],
+            Expanded(
+              child: TabBarView(
+                children: [
+                  ReviewTab(),
+                  InformationTab(
+                      isEditing: false,
+                      onProfileUpdate: (bio, skills, languages) {}),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
