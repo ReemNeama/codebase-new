@@ -20,14 +20,19 @@ class _MyProjectsState extends State<MyProjects> {
         children: [
           PreferredSize(
             preferredSize: Size.fromHeight(48.0),
-            child: TabBar(
-              tabs: [
-                Tab(text: 'My Repository'),
-                Tab(text: 'My Apps'),
-              ],
-              indicatorColor: Colors.red[700],
-              labelColor: Colors.red[700],
-              unselectedLabelColor: Colors.black,
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: TabBar(
+                tabs: [
+                  Tab(text: 'My Repository'),
+                  Tab(text: 'My Apps'),
+                ],
+                indicatorColor: Theme.of(context).colorScheme.primary,
+                labelColor: Theme.of(context).colorScheme.primary,
+                unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                labelStyle: TextStyle(fontWeight: FontWeight.bold),
+                unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal),
+              ),
             ),
           ),
           Expanded(

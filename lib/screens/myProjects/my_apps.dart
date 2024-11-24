@@ -190,11 +190,14 @@ class AppCard extends StatelessWidget {
         );
       },
       child: Card(
-        color: Colors.grey[200],
-        elevation: 4.0,
-        margin: EdgeInsets.all(8.0),
+        elevation: 2.0,
+        margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 1,
+          ),
         ),
         child: Padding(
           padding: EdgeInsets.all(16.0),
