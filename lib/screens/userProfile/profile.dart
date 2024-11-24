@@ -141,23 +141,23 @@ class InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey,
+        color: Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         children: [
           Text(
             value,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
               fontSize: 14,
             ),
           ),
@@ -176,14 +176,14 @@ class TabSection extends StatelessWidget {
       length: 2,
       child: Column(
         children: [
-          const TabBar(
-            tabs: [
+          TabBar(
+            tabs: const [
               Tab(text: 'Review'),
               Tab(text: 'Information'),
             ],
-            indicatorColor: Colors.red,
-            labelColor: Colors.red,
-            unselectedLabelColor: Colors.black,
+            indicatorColor: Theme.of(context).colorScheme.primary,
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Theme.of(context).colorScheme.onSurface,
           ),
           Expanded(
             child: TabBarView(
@@ -537,12 +537,12 @@ class _InformationTabState extends State<InformationTab> {
                       });
                     }
                   : null,
-              selectedColor: Colors.red[100],
+              selectedColor: Theme.of(context).colorScheme.primaryContainer,
               backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
               labelStyle: TextStyle(
-                color: isSelected ? Colors.red : null,
+                color: isSelected ? Theme.of(context).colorScheme.primary : null,
               ),
-              checkmarkColor: Colors.red,
+              checkmarkColor: Theme.of(context).colorScheme.primary,
             );
           }).toList(),
         ),
