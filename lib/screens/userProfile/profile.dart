@@ -35,6 +35,11 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = userProvider.currentUser;
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           // Refresh all data
@@ -115,9 +120,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: TabSection(),
-                ),
+                TabSection(),
               ],
             ),
           ),
@@ -239,7 +242,113 @@ class ReviewTab extends StatelessWidget {
 
         final projectIds = userProjects.map((p) => p.id).toList();
 
-        return Container();
+        return FutureBuilder<List<Comment>>(
+          future: Future.wait(
+            projectIds.map((id) => commentProvider.getCommentsByProjectId(id))
+          ).then((lists) => lists.expand((list) => list).toList()),
+          builder: (context, commentSnapshot) {
+            if (commentSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (commentSnapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error loading comments: ${commentSnapshot.error}',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              );
+            }
+
+            final comments = commentSnapshot.data ?? [];
+
+            if (comments.isEmpty) {
+              return const Center(
+                child: Text('No reviews yet'),
+              );
+            }
+
+            return ListView.builder(
+              itemCount: comments.length,
+              itemBuilder: (context, index) {
+                final comment = comments[index];
+                final project = userProjects.firstWhere(
+                  (p) => p.id == comment.projectId,
+                  orElse: () => Project(
+                    id: '',
+                    userId: '',
+                    name: 'Unknown Project',
+                    description: '',
+                    screenshotsUrl: [],
+                    status: 'Unknown',
+                    isGraduation: false,
+                    collaborators: [],
+                    downloadUrls: {},
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                    category: 'Unknown',
+                  ),
+                );
+
+                return Card(
+                  margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundImage: NetworkImage(
+                                currentUser.profileImageUrl ?? "https://placehold.jp/150x150.png",
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    project.name,
+                                    style: Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  Text(
+                                    _formatDate(comment.createdAt),
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Review by ${comment.userId}',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: List.generate(5, (index) {
+                            return Icon(
+                              index < (comment.rating) ? Icons.star : Icons.star_border,
+                              size: 14,
+                              color: index < (comment.rating) ? Colors.amber : Colors.grey,
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(comment.content),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
         //return FutureBuilder<List<Comment>>(
         //  future: Future.wait(
         //    projectIds.map((id) => commentProvider.getCommentsByProjectId(id))

@@ -29,6 +29,11 @@ class _HomePageState extends State<HomePage> {
     final userProvider = Provider.of<CRUDUser>(context);
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home'),
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           // Refresh user data and projects
