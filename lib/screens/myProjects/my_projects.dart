@@ -24,11 +24,9 @@ class _MyProjectsState extends State<MyProjects> {
         length: 2,
         child: Column(
         children: [
-          PreferredSize(
-            preferredSize: Size.fromHeight(48.0),
-            child: Material(
-              color: Theme.of(context).colorScheme.surface,
-              child: TabBar(
+          Container(
+            color: Theme.of(context).colorScheme.surface,
+            child: TabBar(
                 tabs: [
                   Tab(text: 'My Repository'),
                   Tab(text: 'My Apps'),
@@ -40,7 +38,6 @@ class _MyProjectsState extends State<MyProjects> {
                 unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal),
               ),
             ),
-          ),
           Expanded(
             child: TabBarView(
               children: [

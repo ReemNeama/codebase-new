@@ -107,12 +107,12 @@ class _RepositoryListState extends State<RepositoryList> {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              //Navigator.push(
-              //  context,
-              //  MaterialPageRoute(
-              //    builder: (context) => const create(),
-              //  ),
-              //);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RepositoryPage(),
+                ),
+              );
             },
           ),
         ],

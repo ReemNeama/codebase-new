@@ -152,7 +152,7 @@ class _HomePageState extends State<HomePage> {
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
+                        physics: const ClampingScrollPhysics(),
                         itemCount: projectProvider.items.length > 3
                             ? 3
                             : projectProvider.items.length,
