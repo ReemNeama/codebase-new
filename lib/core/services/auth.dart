@@ -1,40 +1,101 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Firebase user one-time fetch
-  User? get getUser => _auth.currentUser;
+  // Get current user
+  User? get currentUser => _auth.currentUser;
 
-  // Firebase user a realtime stream
-  Stream<User?> get user => _auth.authStateChanges();
-
-  Future<UserCredential> loginWithEmail(String email, String password) async {
-    return await _auth.signInWithEmailAndPassword(
-        email: email, password: password);
+  // Sign in with email and password
+  Future<UserCredential> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      return await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      throw e.toString();
+    }
   }
 
-  Future<UserCredential> signupWithEmail(String email, String password) async {
-    return await _auth.createUserWithEmailAndPassword(
-        email: email, password: password);
+  // Register with email and password
+  Future<UserCredential> registerWithEmailAndPassword(String email, String password) async {
+    try {
+      return await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      throw e.toString();
+    }
   }
-
-  /// Updates the User's data in Firestore on each new login
-  // Future<void> updateUserData(User user) async {
-  //   //  String? fcmToken = await _fcm.getToken();
-  //   DocumentReference userProfileRef = _db.collection('profiles').doc(user.uid);
-
-  //   return userProfileRef.set(userProfileRef);
-  //   //      (
-  //   //               uid: user.uid,
-  //   //               lastActivity: Timestamp.now(),
-  //   //               platform: Platform.operatingSystem,
-  //   //               token: fcmToken)
-  //   //           .toJson(),
-  //   //       merge: true));
 
   // Sign out
-  Future<void> signOut() {
-    return _auth.signOut();
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // Reset password
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // Update user profile
+  Future<void> updateUserProfile({String? displayName, String? photoURL}) async {
+    try {
+      if (_auth.currentUser != null) {
+        await _auth.currentUser!.updateProfile(
+          displayName: displayName,
+          photoURL: photoURL,
+        );
+      }
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // Check if user has permission
+  Future<bool> hasPermission(String permission) async {
+    try {
+      if (_auth.currentUser == null) return false;
+      
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .get();
+      
+      if (!userDoc.exists) return false;
+      
+      final permissions = userDoc.data()?['permissions'] as List<dynamic>?;
+      return permissions?.contains(permission) ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Check if user has all permissions
+  Future<bool> hasAllPermissions(List<String> permissions) async {
+    for (var permission in permissions) {
+      if (!await hasPermission(permission)) return false;
+    }
+    return true;
+  }
+
+  // Check if user has any of the permissions
+  Future<bool> hasAnyPermission(List<String> permissions) async {
+    for (var permission in permissions) {
+      if (await hasPermission(permission)) return true;
+    }
+    return false;
   }
 }

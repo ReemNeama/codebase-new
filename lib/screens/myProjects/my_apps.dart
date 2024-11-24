@@ -5,8 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import '../../core/crudModel/project_crud.dart';
 import '../../core/crudModel/user_crud.dart';
-import '../../core/models/project.dart';  
-import '../apps/add_app.dart' ;  
+import '../../core/models/project.dart';
+import '../apps/add_app.dart';
 import '../apps/edit_app.dart';
 import '../apps/app_details.dart';
 
@@ -23,12 +23,35 @@ class _MyAppsState extends State<MyApps> {
     final projectProvider = Provider.of<CRUDProject>(context);
     final userProvider = Provider.of<CRUDUser>(context);
 
+    // Check if user is logged in
+    if (userProvider.currentUser == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Please log in to view your apps',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () async {
+                await userProvider.getCurrentUser();
+                setState(() {});
+              },
+              child: Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: () async {
         setState(() {}); // This will trigger a rebuild and refetch
       },
       child: FutureBuilder<List<Project>>(
-        future: projectProvider.fetchItems(),  
+        future: projectProvider.fetchItems(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -61,8 +84,14 @@ class _MyAppsState extends State<MyApps> {
             return Center(child: Text("No data available"));
           }
 
-          List<Project> projects = snapshot.data!.where((project) =>
-              project.userId == userProvider.currentUser.id).toList();
+          final currentUserId = userProvider.currentUser?.id;
+          if (currentUserId == null) {
+            return Center(child: Text("User ID not available"));
+          }
+
+          List<Project> projects = snapshot.data!
+              .where((project) => project.userId == currentUserId)
+              .toList();
 
           if (projects.isEmpty) {
             return Center(
@@ -116,37 +145,37 @@ class _MyAppsState extends State<MyApps> {
 
   Future<bool> _confirmDelete(BuildContext context) async {
     return await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Confirm Delete'),
-          content: Text('Are you sure you want to delete this app?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
-    ) ??
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Confirm Delete'),
+              content: Text('Are you sure you want to delete this app?'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
         false;
   }
 }
 
 class AppCard extends StatelessWidget {
-  final Project project;  
-  final VoidCallback onDelete;  
+  final Project project;
+  final VoidCallback onDelete;
 
   const AppCard({
-    super.key,  
+    super.key,
     required this.project,
     required this.onDelete,
   });

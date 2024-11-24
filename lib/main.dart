@@ -1,15 +1,14 @@
-// ignore_for_file: prefer_const_constructors
-
-import '/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
+import 'core/auth/auth_provider.dart';
+import 'core/crudModel/comment_crud.dart';
 import 'core/crudModel/project_crud.dart';
 import 'core/crudModel/repo_crud.dart';
 import 'core/crudModel/user_crud.dart';
-import 'core/crudModel/comment_crud.dart';
+import 'firebase_options.dart';
 import 'screens/authentication/auth_wrapper.dart';
 
 void main() async {
@@ -27,10 +26,24 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => CRUDUser()),
-        ChangeNotifierProvider(create: (_) => CRUDProject()),
-        ChangeNotifierProvider(create: (_) => CRUDRepo()),
-        ChangeNotifierProvider(create: (_) => CRUDComment()),
+        // Auth provider
+        ChangeNotifierProvider<AuthProvider>(
+          create: (_) => AuthProvider(),
+        ),
+
+        // CRUD providers
+        ChangeNotifierProvider<CRUDUser>(
+          create: (_) => CRUDUser(),
+        ),
+        ChangeNotifierProvider<CRUDProject>(
+          create: (_) => CRUDProject(),
+        ),
+        ChangeNotifierProvider<CRUDRepo>(
+          create: (_) => CRUDRepo(),
+        ),
+        ChangeNotifierProvider<CRUDComment>(
+          create: (_) => CRUDComment(),
+        ),
       ],
       child: ScreenUtilInit(
         designSize: const Size(1920, 1080),

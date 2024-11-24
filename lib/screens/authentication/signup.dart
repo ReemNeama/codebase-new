@@ -1,14 +1,14 @@
 // ignore_for_file: unused_field, prefer_const_constructors_in_immutables, library_private_types_in_public_api, prefer_const_constructors, use_key_in_widget_constructors, prefer_const_literals_to_create_immutables, prefer_const_declarations, avoid_print, prefer_interpolation_to_compose_strings, non_constant_identifier_names, no_leading_underscores_for_local_identifiers, use_build_context_synchronously
 
 import 'dart:io';
-import '/screens/homepage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../core/services/auth.dart';
+import 'package:provider/provider.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/auth/auth_provider.dart';
 import 'login.dart';
-import 'auth_wrapper.dart'; // Import AuthWrapper
+import 'auth_wrapper.dart';
 
 class SignUpPage extends StatefulWidget {
   SignUpPage({super.key});
@@ -36,14 +36,12 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isObscure = true;
   bool _isObscureConfirm = true;
 
-  final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-    // Add listener to email controller to update student ID
     _emailController.addListener(_updateStudentId);
   }
 
@@ -63,7 +61,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
   void _updateStudentId() {
     String email = _emailController.text.toLowerCase();
-    // Extract student ID from email if it matches the pattern
     if (email.contains('@')) {
       String studentId = email.split('@')[0];
       _studentIdController.text = studentId;
@@ -114,33 +111,38 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
       // 1. Create user account
-      final userCredential = await _authService.signupWithEmail(
+      await authProvider.signUpWithEmailAndPassword(
         _studentIdController.text + "@utb.edu.bh",
         _passwordController.text,
       );
 
+      final user = authProvider.state.user;
+      if (user == null) throw Exception('Failed to create user account');
+
       // 2. Upload profile picture
       final String profilePictureUrl =
           await _storageService.uploadProfilePicture(
-        userCredential.user!.uid,
+        user.uid,
         _profileImage!,
       );
 
       // 3. Create user profile in Firestore
-      await _firestore
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
+      await _firestore.collection('users').doc(user.uid).set({
         'email': _studentIdController.text + "@utb.edu.bh",
         'firstName': _firstNameController.text,
         'lastName': _lastNameController.text,
         'studentId': _studentIdController.text,
         'profileImageUrl': profilePictureUrl,
-        'phoneNumber': _phoneNumberController.text.isNotEmpty ? _phoneNumberController.text : null,
+        'phoneNumber': _phoneNumberController.text.isNotEmpty
+            ? _phoneNumberController.text
+            : null,
         'bio': _bioController.text.isNotEmpty ? _bioController.text : null,
-        'skills': [],  // Initialize as empty list, can be updated later
-        'programmingLanguages': [],  // Initialize as empty list, can be updated later
+        'skills': [], // Initialize as empty list, can be updated later
+        'programmingLanguages':
+            [], // Initialize as empty list, can be updated later
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -149,9 +151,9 @@ class _SignUpPageState extends State<SignUpPage> {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (context) => const AuthWrapper(),  // Use AuthWrapper instead of HomePage
+          builder: (context) => const AuthWrapper(),
         ),
-        (route) => false,  // Remove all previous routes from the stack
+        (route) => false,
       );
     } catch (e) {
       setState(() {
@@ -271,7 +273,6 @@ class _SignUpPageState extends State<SignUpPage> {
               hintText: "bh########",
             ),
             onChanged: (value) {
-              // Update email when student ID changes
               setState(() {
                 _emailController.text = value;
               });

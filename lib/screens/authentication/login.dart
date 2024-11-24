@@ -42,10 +42,10 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.signIn(email, password);
+      await authProvider.signInWithEmailAndPassword(email, password);
 
       if (authProvider.state.status == AuthStatus.error) {
-        setState(() => _errorMessage = authProvider.state.errorMessage);
+        setState(() => _errorMessage = authProvider.state.error);
       }
     } catch (e) {
       setState(() => _errorMessage = e.toString());

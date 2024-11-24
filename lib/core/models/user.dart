@@ -109,21 +109,7 @@ class User {
     };
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'firstName': firstName,
-      'lastName': lastName,
-      'profileImageUrl': profileImageUrl,
-      'phoneNumber': phoneNumber,
-      'studentId': studentId,
-      'bio': bio,
-      'skills': skills,
-      'programmingLanguages': programmingLanguages,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-    };
-  }
+  Map<String, dynamic> toJson() => toMap();
 
   User copyWith({
     String? email,
@@ -155,7 +141,8 @@ class User {
     );
   }
 
-  String get fullName => '$firstName $lastName';
+  String get name => '$firstName $lastName';
+  String get photoUrl => profileImageUrl ?? 'https://placehold.jp/150x150.png';
 
   @override
   String toString() {

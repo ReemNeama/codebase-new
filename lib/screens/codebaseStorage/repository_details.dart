@@ -16,6 +16,9 @@ import '../../core/crudModel/repo_crud.dart';
 import '../../core/crudModel/user_crud.dart';
 import '../../core/models/repo.dart';
 import '../../core/models/user.dart';
+import '../../widgets/detail_header.dart';
+import '../../widgets/stats_section.dart';
+import '../../widgets/user_section.dart';
 
 class Folder {
   String name;
@@ -101,7 +104,7 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
 
   Future<void> navigateToPath(String path) async {
     if (path == currentPath) return; // Don't navigate if we're already here
-    
+
     try {
       setState(() {
         isLoading = true;
@@ -131,7 +134,9 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
 
       // Get all files first
       await Future.wait(
-        listResult.items.where((item) => item.name != ".init").map((item) async {
+        listResult.items
+            .where((item) => item.name != ".init")
+            .map((item) async {
           final metadata = await item.getMetadata();
           newFiles.add(OurOwnFile(item.name, metadata));
         }),
@@ -156,7 +161,8 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
 
   Future<void> goBackOneFolder() async {
     List<String> currentPathFolders = currentPath.split("/");
-    String newPath = currentPathFolders.sublist(0, currentPathFolders.length - 1).join("/");
+    String newPath =
+        currentPathFolders.sublist(0, currentPathFolders.length - 1).join("/");
     await navigateToPath(newPath);
   }
 
@@ -178,10 +184,10 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
 
       final storage = FirebaseStorage.instance.ref(currentPath);
       final newFolderRef = storage.child(folderName);
-      
+
       // Create .init file to make the folder exist
       await newFolderRef.child('.init').putData(Uint8List(0));
-      
+
       // Refresh the current directory to show the new folder
       await listFilesInFolder(currentPath, rootFolder);
     } catch (e) {
@@ -259,7 +265,7 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
       for (var item in listResult.items) {
         final fileName = path.basename(item.fullPath);
         final newItemRef = newFolderRef.child(fileName);
-        
+
         // Download and upload the file
         final data = await item.getData();
         if (data != null) {
@@ -294,8 +300,7 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
     }
   }
 
-  Future<void> _showFolderOptionsDialog(Folder folder) async {
-    
+  Future<void> _showFolderOptionsDialog(Folder folder) {
     return showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -338,8 +343,9 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
   }
 
   Future<void> _showRenameDialog(Folder folder) async {
-    final TextEditingController nameController = TextEditingController(text: folder.name);
-    
+    final TextEditingController nameController =
+        TextEditingController(text: folder.name);
+
     return showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -361,7 +367,8 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
             TextButton(
               child: Text('Rename'),
               onPressed: () {
-                if (nameController.text.isNotEmpty && nameController.text != folder.name) {
+                if (nameController.text.isNotEmpty &&
+                    nameController.text != folder.name) {
                   Navigator.pop(context);
                   renameFolder(folder, nameController.text);
                 }
@@ -465,9 +472,10 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
         error = null;
       });
 
-      final fileRef = FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
+      final fileRef =
+          FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
       final url = await fileRef.getDownloadURL();
-      
+
       // Launch URL in browser for download
       if (await canLaunchUrl(Uri.parse(url))) {
         await launchUrl(Uri.parse(url));
@@ -492,9 +500,10 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
         error = null;
       });
 
-      final fileRef = FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
+      final fileRef =
+          FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
       await fileRef.delete();
-      
+
       // Refresh the current directory
       await listFilesInFolder(currentPath, rootFolder);
     } catch (e) {
@@ -515,8 +524,10 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
         error = null;
       });
 
-      final oldFileRef = FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
-      final newFileRef = FirebaseStorage.instance.ref().child("$currentPath/$newName");
+      final oldFileRef =
+          FirebaseStorage.instance.ref().child("$currentPath/${file.name}");
+      final newFileRef =
+          FirebaseStorage.instance.ref().child("$currentPath/$newName");
 
       // Download old file data
       final data = await oldFileRef.getData();
@@ -597,7 +608,8 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
   }
 
   Future<void> _showFileRenameDialog(OurOwnFile file) {
-    final TextEditingController nameController = TextEditingController(text: file.name);
+    final TextEditingController nameController =
+        TextEditingController(text: file.name);
     final extension = path.extension(file.name);
     final baseName = path.basenameWithoutExtension(file.name);
     nameController.text = baseName;
@@ -676,227 +688,244 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Back button and current path
-        if (!rootFolder) Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8.r),
-          child: Row(
-            children: [
-              IconButton(
-                icon: Icon(Icons.arrow_back, size: 20),
-                onPressed: goBackOneFolder,
-                tooltip: 'Go back',
-                padding: EdgeInsets.all(8.r),
-                constraints: BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      TextButton.icon(
-                        icon: Icon(Icons.home, size: 16),
-                        label: Text('Root', style: TextStyle(fontSize: 12.sp)),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.symmetric(horizontal: 8.r),
-                        ),
-                        onPressed: () {
-                          navigateToPath("repository/${widget.repository.name}");
-                        },
-                      ),
-                      ...getBreadcrumbItems().asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final item = entry.value;
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.chevron_right, size: 16),
-                            TextButton(
-                              onPressed: () {
-                                String path = "repository/${getBreadcrumbItems().sublist(0, index + 1).join('/')}";
-                                navigateToPath(path);
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.symmetric(horizontal: 8.r),
-                              ),
-                              child: Text(
-                                item,
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  color: index == getBreadcrumbItems().length - 1 
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }),
-                    ],
+        if (!rootFolder)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.r),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_back, size: 20),
+                  onPressed: goBackOneFolder,
+                  tooltip: 'Go back',
+                  padding: EdgeInsets.all(8.r),
+                  constraints: BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        
-        // Folders grid
-        if (folders.isNotEmpty) Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 8.r),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Folders',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width ~/ 100, // Smaller tiles
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 0.85, // Slightly taller than wide for the name
-                ),
-                itemCount: folders.length,
-                itemBuilder: (context, index) {
-                  final folder = folders[index];
-                  return InkWell(
-                    onTap: () => navigateToPath(folder.path),
-                    borderRadius: BorderRadius.circular(6.r),
-                    child: Container(
-                      padding: EdgeInsets.all(4.r),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
-                          width: 0.5,
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        TextButton.icon(
+                          icon: Icon(Icons.home, size: 16),
+                          label:
+                              Text('Root', style: TextStyle(fontSize: 12.sp)),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8.r),
+                          ),
+                          onPressed: () {
+                            navigateToPath(
+                                "repository/${widget.repository.name}");
+                          },
                         ),
-                        borderRadius: BorderRadius.circular(6.r),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Stack(
-                            alignment: Alignment.center,
+                        ...getBreadcrumbItems().asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final item = entry.value;
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.folder,
-                                size: 32,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              Positioned(
-                                top: -8,
-                                right: -8,
-                                child: IconButton(
-                                  icon: Icon(Icons.more_vert, size: 16),
-                                  padding: EdgeInsets.zero,
-                                  constraints: BoxConstraints(
-                                    minWidth: 16,
-                                    minHeight: 16,
+                              Icon(Icons.chevron_right, size: 16),
+                              TextButton(
+                                onPressed: () {
+                                  String path =
+                                      "repository/${getBreadcrumbItems().sublist(0, index + 1).join('/')}";
+                                  navigateToPath(path);
+                                },
+                                style: TextButton.styleFrom(
+                                  padding:
+                                      EdgeInsets.symmetric(horizontal: 8.r),
+                                ),
+                                child: Text(
+                                  item,
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    color: index ==
+                                            getBreadcrumbItems().length - 1
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
                                   ),
-                                  onPressed: () => _showFolderOptionsDialog(folder),
                                 ),
                               ),
                             ],
-                          ),
-                          SizedBox(height: 4.h),
-                          Text(
-                            folder.name,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 11.sp),
-                          ),
-                        ],
-                      ),
+                          );
+                        }),
+                      ],
                     ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        
-        // Files list
-        if (files.isNotEmpty) Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 8.r),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Files',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: files.length,
-                itemBuilder: (context, index) {
-                  final file = files[index];
-                  return ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: Icon(
-                      _getFileIcon(file.name),
-                      size: 20,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    title: Text(
-                      file.name,
-                      style: TextStyle(fontSize: 12.sp),
-                    ),
-                    subtitle: Text(
-                      formatFileSize(file.data.size ?? 0),
-                      style: TextStyle(fontSize: 10.sp),
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.more_vert, size: 18),
-                      onPressed: () => _showFileOptionsDialog(file),
-                      constraints: BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        
-        if (folders.isEmpty && files.isEmpty) Center(
-          child: Padding(
-            padding: EdgeInsets.all(24.r),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.folder_open,
-                  size: 48,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  'This folder is empty',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: Theme.of(context).colorScheme.outline,
                   ),
                 ),
               ],
             ),
           ),
-        ),
+
+        // Folders grid
+        if (folders.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 8.r),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Folders',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: MediaQuery.of(context).size.width ~/
+                        100, // Smaller tiles
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio:
+                        0.85, // Slightly taller than wide for the name
+                  ),
+                  itemCount: folders.length,
+                  itemBuilder: (context, index) {
+                    final folder = folders[index];
+                    return InkWell(
+                      onTap: () => navigateToPath(folder.path),
+                      borderRadius: BorderRadius.circular(6.r),
+                      child: Container(
+                        padding: EdgeInsets.all(4.r),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withOpacity(0.5),
+                            width: 0.5,
+                          ),
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Icon(
+                                  Icons.folder,
+                                  size: 32,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                Positioned(
+                                  top: -8,
+                                  right: -8,
+                                  child: IconButton(
+                                    icon: Icon(Icons.more_vert, size: 16),
+                                    padding: EdgeInsets.zero,
+                                    constraints: BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    onPressed: () =>
+                                        _showFolderOptionsDialog(folder),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              folder.name,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11.sp),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+        // Files list
+        if (files.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 8.r),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Files',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: files.length,
+                  itemBuilder: (context, index) {
+                    final file = files[index];
+                    return ListTile(
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      leading: Icon(
+                        _getFileIcon(file.name),
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      title: Text(
+                        file.name,
+                        style: TextStyle(fontSize: 12.sp),
+                      ),
+                      subtitle: Text(
+                        formatFileSize(file.data.size ?? 0),
+                        style: TextStyle(fontSize: 10.sp),
+                      ),
+                      trailing: IconButton(
+                        icon: Icon(Icons.more_vert, size: 18),
+                        onPressed: () => _showFileOptionsDialog(file),
+                        constraints: BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+        if (folders.isEmpty && files.isEmpty)
+          Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.r),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.folder_open,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'This folder is empty',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -960,220 +989,40 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
+            DetailHeader(
+              title: widget.repository.name,
+              description: widget.repository.description,
+              createdAt: widget.repository.createdAt,
+              languages: widget.repository.languages,
+              categories: widget.repository.categories,
+              status: widget.repository.status,
               padding: EdgeInsets.symmetric(horizontal: 25.w, vertical: 15.h),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20.r),
-                  bottomRight: Radius.circular(20.r),
+            ),
+            StatsSection(
+              stats: [
+                StatItem(
+                  label: 'Files',
+                  value: widget.repository.files.length.toString(),
+                  icon: Icons.insert_drive_file,
+                  color: Colors.blue,
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Created on ${DateFormat('MMM d, y').format(widget.repository.createdAt)}',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
-                    ),
-                  ),
-                  SizedBox(height: 16.h),
-                  Text(
-                    widget.repository.description,
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 16.h),
-                  if (widget.repository.languages.isNotEmpty) ...[
-                    Text(
-                      'Languages',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 8.h),
-                    Wrap(
-                      spacing: 8.w,
-                      runSpacing: 8.h,
-                      children: widget.repository.languages
-                          .map((lang) => Chip(
-                                label: Text(lang),
-                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                                labelStyle: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
-                              ))
-                          .toList(),
-                    ),
-                    SizedBox(height: 16.h),
-                  ],
-                  if (widget.repository.categories.isNotEmpty) ...[
-                    Text(
-                      'Categories',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 8.h),
-                    Wrap(
-                      spacing: 8.w,
-                      runSpacing: 8.h,
-                      children: widget.repository.categories
-                          .map((category) => Chip(
-                                label: Text(category),
-                                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                                labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
-                              ))
-                          .toList(),
-                    ),
-                    SizedBox(height: 16.h),
-                  ],
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.public,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        size: 20.sp,
-                      ),
-                      SizedBox(width: 8.w),
-                      Text(
-                        widget.repository.status,
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (widget.repository.url != null) ...[
-                    SizedBox(height: 16.h),
-                    InkWell(
-                      onTap: () async {
-                        final Uri url = Uri.parse(widget.repository.url!);
-                        if (await canLaunchUrl(url)) {
-                          await launchUrl(url);
-                        }
-                      },
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.link,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            size: 20.sp,
-                          ),
-                          SizedBox(width: 8.w),
-                          Text(
-                            widget.repository.url ?? "Not available",
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              ],
+              padding: EdgeInsets.symmetric(horizontal: 25.w, vertical: 10.h),
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 25.w, vertical: 20.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Card(
-                    elevation: 2,
-                    margin: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(16.r),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Developers',
-                            style: TextStyle(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 12.h),
-                          Builder(
-                            builder: (context) {
-                              final creator = getUserById(widget.repository.userId);
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  backgroundColor: Theme.of(context).colorScheme.primary,
-                                  child: Text(
-                                    (creator.firstName.isNotEmpty ? creator.firstName[0] : '?') +
-                                        (creator.lastName.isNotEmpty ? creator.lastName[0] : ''),
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                ),
-                                title: Text(
-                                  '${creator.firstName} ${creator.lastName}',
-                                  style: TextStyle(
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Creator',
-                                  style: TextStyle(
-                                    fontSize: 14.sp,
-                                    color: Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          ...widget.repository.collabs.map((collab) {
-                            final user = getUserByStudentID(collab);
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: CircleAvatar(
-                                backgroundColor: Theme.of(context).colorScheme.primary,
-                                child: Text(
-                                  (user.firstName.isNotEmpty ? user.firstName[0] : '?') +
-                                      (user.lastName.isNotEmpty ? user.lastName[0] : ''),
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                ),
-                              ),
-                              title: Text(
-                                '${user.firstName} ${user.lastName}',
-                                style: TextStyle(
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              subtitle: Text(
-                                'Developer',
-                                style: TextStyle(
-                                  fontSize: 14.sp,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
+                  UserSection(
+                    owner: getUserById(widget.repository.userId),
+                    collaborators: widget.repository.collabs
+                        .map((collab) => getUserByStudentID(collab))
+                        .toList(),
+                    title: 'Repository Team',
+                    canModify: false,
+                    onAddCollaborator: null,
+                    onRemoveCollaborator: null,
                   ),
                   SizedBox(height: 24.h),
                   Card(
@@ -1201,36 +1050,43 @@ class _RepositoryDetailPageState extends State<RepositoryDetailPage> {
                                 '$fullSize/20KB',
                                 style: TextStyle(
                                   fontSize: 16.sp,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
                           SizedBox(height: 16.h),
                           ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: setsize > 0 ? setsize : 0),
+                            constraints: BoxConstraints(
+                                maxWidth: setsize > 0 ? setsize : 0),
                             child: Column(
                               children: [
-                                if (codeWidth > 0) _buildStorageBar(
-                                  'Code',
-                                  codePercentage,
-                                  Colors.blue,
-                                ),
-                                if (documentsWidth > 0) _buildStorageBar(
-                                  'Documents',
-                                  documentsPercentage,
-                                  Colors.green,
-                                ),
-                                if (imagesWidth > 0) _buildStorageBar(
-                                  'Images',
-                                  imagesPercentage,
-                                  Colors.orange,
-                                ),
-                                if (otherFilesWidth > 0) _buildStorageBar(
-                                  'Others',
-                                  otherFilesPercentage,
-                                  Colors.grey,
-                                ),
+                                if (codeWidth > 0)
+                                  _buildStorageBar(
+                                    'Code',
+                                    codePercentage,
+                                    Colors.blue,
+                                  ),
+                                if (documentsWidth > 0)
+                                  _buildStorageBar(
+                                    'Documents',
+                                    documentsPercentage,
+                                    Colors.green,
+                                  ),
+                                if (imagesWidth > 0)
+                                  _buildStorageBar(
+                                    'Images',
+                                    imagesPercentage,
+                                    Colors.orange,
+                                  ),
+                                if (otherFilesWidth > 0)
+                                  _buildStorageBar(
+                                    'Others',
+                                    otherFilesPercentage,
+                                    Colors.grey,
+                                  ),
                               ],
                             ),
                           ),

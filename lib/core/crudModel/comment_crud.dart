@@ -1,119 +1,186 @@
 // ignore_for_file: avoid_print
 
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
-import '../models/project.dart';
+import '../base/base_crud.dart';
 import '../models/comment.dart';
+import '../models/project.dart';
 import '../models/user.dart';
-import '../services/api.dart';
 
-class CRUDComment extends ChangeNotifier {
-  final Api _api = Api("comment");
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class CRUDComment extends BaseCRUD<Comment> {
+  CRUDComment() : super("comments");
 
-  late List<Comment> comments;
+  @override
+  Map<String, dynamic> toJson(Comment item) => item.toMap();
 
-  // Fetch all comments
-  Future<List<Comment>> fetchComments() async {
-    var result = await _api.getDataCollection();
-    comments = result.docs
-        .map((doc) => Comment.fromMap(doc.data() as Map<String, dynamic>?, doc.id))
-        .toList();
-    return comments;
-  }
+  @override
+  Comment fromJson(Map<String, dynamic>? data, String id) =>
+      Comment.fromMap(data, id);
 
-  Stream<QuerySnapshot> fetchCommentsAsStream() {
-    return _api.streamDataCollection();
-  }
-
-  // Fetch comments by project ID
   Future<List<Comment>> getCommentsByProjectId(String projectId) async {
-    var result = await _firestore
-        .collection('comment')
-        .where('projectId', isEqualTo: projectId)
-        .get();
-    return result.docs
-        .map((doc) => Comment.fromMap(doc.data(), doc.id))
-        .toList();
-  }
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('comments')
+          .where('projectId', isEqualTo: projectId)
+          .orderBy('createdAt', descending: true)
+          .get();
 
-  // Fetch comments by user ID
-  Future<List<Comment>> getCommentsByUserId(String userId) async {
-    var result = await _firestore
-        .collection('comment')
-        .where('userId', isEqualTo: userId)
-        .get();
-    return result.docs
-        .map((doc) => Comment.fromMap(doc.data(), doc.id))
-        .toList();
-  }
-
-  // Fetch comments for a list of projects
-  Future<List<Comment>> fetchCommentsForProjects(List<Project> projects) async {
-    List<Comment> comments = [];
-    for (var project in projects) {
-      var projectComments = await getCommentsByProjectId(project.id);
-      comments.addAll(projectComments);
+      return querySnapshot.docs
+          .map((doc) => Comment.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      print('Error getting comments by project ID: $e');
+      throw e;
     }
-    return comments;
   }
 
-  // Fetch comments by user
+  Future<List<Comment>> getCommentsByUserId(String userId) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('comments')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => Comment.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      print('Error getting comments by user ID: $e');
+      throw e;
+    }
+  }
+
+  Future<List<Comment>> fetchCommentsForProjects(List<Project> projects) async {
+    try {
+      List<Comment> allComments = [];
+      for (var project in projects) {
+        var projectComments = await getCommentsByProjectId(project.id);
+        allComments.addAll(projectComments);
+      }
+      return allComments;
+    } catch (e) {
+      print('Error fetching comments for projects: $e');
+      throw e;
+    }
+  }
+
   Future<List<Comment>> fetchCommentsByUser(User? currentUser) async {
     if (currentUser == null) return [];
-    // Filter comments based on projects owned by the user
-    var comments = await fetchComments();
-    return comments.where((comment) => comment.userId == currentUser.id).toList();
+    try {
+      return await getCommentsByUserId(currentUser.id);
+    } catch (e) {
+      print('Error fetching comments by user: $e');
+      throw e;
+    }
   }
 
-  // Add a comment
-  Future<String> addComment(Comment data) async {
-    var result = await _api.addDocument(data.toMap());
-    return result.id;
+  Future<bool> hasUserCommentedOnProject(
+      String userId, String projectId) async {
+    try {
+      var result = await FirebaseFirestore.instance
+          .collection('comments')
+          .where('userId', isEqualTo: userId)
+          .where('projectId', isEqualTo: projectId)
+          .get();
+      return result.docs.isNotEmpty;
+    } catch (e) {
+      print('Error checking user comment: $e');
+      throw e;
+    }
   }
 
-  // Update a comment
-  Future<void> updateComment(Comment data, String id) async {
-    await _api.updateDocument(data.toMap(), id);
-  }
-
-  // Delete a comment
-  Future<void> removeComment(String id) async {
-    await _api.removeDocument(id);
-  }
-
-  // Get a comment by ID
-  Future<Comment?> getComment(String id) async {
-    var doc = await _api.getDocumentById(id);
-    return doc.exists ? Comment.fromMap(doc.data() as Map<String, dynamic>?, doc.id) : null;
-  }
-
-  // Check if a user has already commented on a project
-  Future<bool> hasUserCommentedOnProject(String userId, String projectId) async {
-    var result = await _firestore
-        .collection('comment')
-        .where('userId', isEqualTo: userId)
-        .where('projectId', isEqualTo: projectId)
-        .get();
-    return result.docs.isNotEmpty;
-  }
-
-  // Get average rating for a project
   Future<double> getAverageRating(String projectId) async {
-    var comments = await getCommentsByProjectId(projectId);
-    if (comments.isEmpty) return 0.0;
-    var total = comments.fold(0, (total, comment) => total + comment.stars);
-    return total / comments.length;
+    try {
+      var comments = await getCommentsByProjectId(projectId);
+      if (comments.isEmpty) return 0.0;
+      var total =
+          comments.fold(0, (sum, comment) => sum + (comment.stars ?? 0));
+      return total / comments.length;
+    } catch (e) {
+      print('Error getting average rating: $e');
+      throw e;
+    }
   }
 
-  // Get total number of comments for a project
   Future<int> getCommentCount(String projectId) async {
-    var result = await _firestore
-        .collection('comment')
-        .where('projectId', isEqualTo: projectId)
-        .count()
-        .get();
-    return result.count ?? 0;
+    if (projectId.isEmpty) {
+      throw ArgumentError('projectId cannot be empty');
+    }
+
+    try {
+      final result = await FirebaseFirestore.instance
+          .collection('comments')
+          .where('projectId', isEqualTo: projectId)
+          .count()
+          .get();
+
+      return result.count ?? 0;
+    } on FirebaseException catch (e) {
+      log('Error getting comment count for project $projectId: $e',
+          name: 'CommentCRUD');
+      rethrow;
+    } catch (e) {
+      log('Unexpected error getting comment count: $e', name: 'CommentCRUD');
+      throw FirebaseException(
+        plugin: 'firestore',
+        message: 'Failed to get comment count: $e',
+      );
+    }
+  }
+
+  Future<Comment> addComment(Comment comment) async {
+    try {
+      final docRef = await FirebaseFirestore.instance
+          .collection('comments')
+          .add(comment.toMap());
+
+      return comment.copyWith();
+    } catch (e) {
+      print('Error adding comment: $e');
+      throw e;
+    }
+  }
+
+  Future<void> deleteComment(String commentId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('comments')
+          .doc(commentId)
+          .delete();
+    } catch (e) {
+      print('Error deleting comment: $e');
+      throw e;
+    }
+  }
+
+  Future<void> updateComment(Comment comment) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('comments')
+          .doc(comment.id)
+          .update(comment.toMap());
+    } catch (e) {
+      print('Error updating comment: $e');
+      throw e;
+    }
+  }
+
+  Future<List<Comment>> fetchComments() async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('comments')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => Comment.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      print('Error fetching comments: $e');
+      throw e;
+    }
   }
 }

@@ -19,22 +19,65 @@ class MyRepository extends StatefulWidget {
 }
 
 class _MyRepositoryState extends State<MyRepository> {
+  Future<List<Repo>>? _reposFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRepos();
+  }
+
+  void _loadRepos() {
+    final repoProvider = Provider.of<CRUDRepo>(context, listen: false);
+    _reposFuture = repoProvider.fetchItems();
+    setState(() {});
+  }
+
+  Future<void> _handleRefresh() async {
+    _loadRepos();
+  }
+
   @override
   Widget build(BuildContext context) {
     var userProvider = Provider.of<CRUDUser>(context);
-    String currentUserId = userProvider.currentUser.id.toString();
+    
+    // Check if user is logged in
+    if (userProvider.currentUser == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Please log in to view your repositories',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () async {
+                await userProvider.getCurrentUser();
+                _loadRepos();
+              },
+              child: Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
 
-    var repoProvider = Provider.of<CRUDRepo>(context);
+    final currentUserId = userProvider.currentUser?.id;
+    if (currentUserId == null) {
+      return Center(
+        child: Text('User ID not available'),
+      );
+    }
 
     return Column(
       children: [
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () async {
-              setState(() {});  // This will trigger a rebuild and refetch
-            },
+            onRefresh: _handleRefresh,
             child: FutureBuilder<List<Repo>>(
-              future: repoProvider.fetchItems(),
+              future: _reposFuture,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   print('Repository Error: ${snapshot.error}');
@@ -48,16 +91,14 @@ class _MyRepositoryState extends State<MyRepository> {
                         ),
                         SizedBox(height: 8),
                         ElevatedButton(
-                          onPressed: () {
-                            setState(() {});  // Retry loading
-                          },
+                          onPressed: _loadRepos,
                           child: Text('Retry'),
                         ),
                       ],
                     ),
                   );
                 }
-                
+
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(child: CircularProgressIndicator());
                 }
@@ -281,8 +322,7 @@ class RepositoryCard extends StatelessWidget {
     );
   }
 
-  Future<bool> _hasCollaborators(
-      BuildContext context, Repo repoModel) async {
+  Future<bool> _hasCollaborators(BuildContext context, Repo repoModel) async {
     try {
       await Provider.of<CRUDRepo>(context, listen: false)
           .getCollaborators(repoModel.id);

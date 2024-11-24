@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
@@ -8,6 +7,7 @@ import '../../core/crudModel/repo_crud.dart';
 import '../../core/models/repo.dart';
 import 'repository_details.dart';
 import 'repository_create.dart';
+import '../../widgets/project_card.dart';
 
 class RepositoryList extends StatefulWidget {
   const RepositoryList({super.key});
@@ -38,14 +38,35 @@ class _RepositoryListState extends State<RepositoryList> {
     try {
       _isLoading = true;
       var repoProvider = Provider.of<CRUDRepo>(context, listen: false);
+
+      // First, get the base items
       final newItems = await repoProvider.fetchPaginatedItems(
-        pageKey,
-        _pageSize,
-        searchQuery: _searchQuery,
+        pageSize: _pageSize,
+        orderBy: _sortBy,
       );
 
+      // If there's a search query, filter the items
+      var filteredItems = _searchQuery.isEmpty
+          ? newItems
+          : newItems
+              .where((repo) =>
+                  repo.name
+                      .toLowerCase()
+                      .contains(_searchQuery.toLowerCase()) ||
+                  (repo.description?.toLowerCase() ?? '')
+                      .contains(_searchQuery.toLowerCase()))
+              .toList();
+
+      if (filteredItems.isEmpty && pageKey == 0) {
+        setState(() {
+          _isLoading = false;
+          _error = 'No repositories found';
+        });
+        return;
+      }
+
       // Apply sorting
-      newItems.sort((a, b) {
+      filteredItems.sort((a, b) {
         if (_sortBy == 'name') {
           return _sortAscending
               ? a.name.compareTo(b.name)
@@ -58,12 +79,12 @@ class _RepositoryListState extends State<RepositoryList> {
         return 0;
       });
 
-      final isLastPage = newItems.length < _pageSize;
+      final isLastPage = filteredItems.length < _pageSize;
       if (isLastPage) {
-        _pagingController.appendLastPage(newItems);
+        _pagingController.appendLastPage(filteredItems);
       } else {
-        final nextPageKey = pageKey + newItems.length;
-        _pagingController.appendPage(newItems, nextPageKey);
+        final nextPageKey = pageKey + filteredItems.length;
+        _pagingController.appendPage(filteredItems, nextPageKey);
       }
       setState(() {
         _isLoading = false;
@@ -72,9 +93,19 @@ class _RepositoryListState extends State<RepositoryList> {
     } catch (error) {
       setState(() {
         _isLoading = false;
-        _error = error.toString();
+        _error = error is Exception
+            ? error.toString()
+            : 'An unexpected error occurred while loading repositories';
       });
-      _pagingController.error = error;
+      _pagingController.error = _error;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_error ?? 'Failed to load repositories'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 
@@ -180,8 +211,8 @@ class _RepositoryListState extends State<RepositoryList> {
               child: PagedListView<int, Repo>(
                 pagingController: _pagingController,
                 builderDelegate: PagedChildBuilderDelegate<Repo>(
-                  itemBuilder: (context, repo, index) => RepositoryCard(
-                    repository: repo,
+                  itemBuilder: (context, repo, index) => ProjectCard(
+                    project: repo,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -191,6 +222,15 @@ class _RepositoryListState extends State<RepositoryList> {
                         ),
                       );
                     },
+                    extraActions: [
+                      Icon(Icons.star, size: 16.0.sp, color: Colors.amber),
+                      SizedBox(width: 4.w),
+                      Text('5'),
+                      SizedBox(width: 16.0.w),
+                      Icon(Icons.call_split, size: 16.0.sp, color: Colors.blue),
+                      SizedBox(width: 4.0.w),
+                      Text('5'),
+                    ],
                   ),
                 ),
               ),
@@ -205,50 +245,5 @@ class _RepositoryListState extends State<RepositoryList> {
   void dispose() {
     _pagingController.dispose();
     super.dispose();
-  }
-}
-
-class RepositoryCard extends StatelessWidget {
-  final Repo repository;
-  final VoidCallback onTap;
-
-  const RepositoryCard({
-    Key? key,
-    required this.repository,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          child: Text(
-            repository.name.substring(0, 1).toUpperCase(),
-          ),
-        ),
-        title: Text(repository.name),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (repository.description != null &&
-                repository.description!.isNotEmpty)
-              Text(
-                repository.description!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            SizedBox(height: 4.h),
-            Text(
-              'Created: ${DateFormat('MMM d, yyyy').format(repository.createdAt)}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        trailing: Icon(Icons.chevron_right),
-      ),
-    );
   }
 }

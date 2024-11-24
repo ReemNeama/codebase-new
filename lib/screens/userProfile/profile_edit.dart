@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/crudModel/user_crud.dart';
+import '../../core/models/user.dart';
 
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
@@ -16,7 +17,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   int _currentStep = 0;
   bool _isLoading = false;
   String? _errorMessage;
-  
+
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
@@ -58,6 +59,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   void _loadUserData() {
     final user = context.read<CRUDUser>().currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error loading user data')),
+      );
+      Navigator.of(context).pop();
+      return;
+    }
+
     _firstNameController.text = user.firstName;
     _lastNameController.text = user.lastName;
     _bioController.text = user.bio ?? '';
@@ -68,7 +77,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   bool _canContinue() {
     switch (_currentStep) {
       case 0:
-        return _firstNameController.text.isNotEmpty && _lastNameController.text.isNotEmpty;
+        return _firstNameController.text.isNotEmpty &&
+            _lastNameController.text.isNotEmpty;
       case 1:
         return true; // Bio is optional
       case 2:
@@ -95,12 +105,22 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       final userProvider = context.read<CRUDUser>();
       final currentUser = userProvider.currentUser;
 
-      final updatedUser = currentUser.copyWith(
+      if (currentUser == null) {
+        throw Exception('User not found');
+      }
+
+      final updatedUser = User(
+        id: currentUser.id,
+        email: currentUser.email,
         firstName: _firstNameController.text,
         lastName: _lastNameController.text,
+        profileImageUrl: currentUser.profileImageUrl,
+        phoneNumber: currentUser.phoneNumber,
+        studentId: currentUser.studentId,
         bio: _bioController.text,
         skills: _skills,
         programmingLanguages: _programmingLanguages,
+        createdAt: currentUser.createdAt,
         updatedAt: DateTime.now(),
       );
 
@@ -108,7 +128,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully')),
       );
@@ -117,9 +137,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         _errorMessage = e.toString();
         _isLoading = false;
       });
-      
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_errorMessage ?? 'An error occurred while updating profile')),
+        SnackBar(
+            content: Text(
+                _errorMessage ?? 'An error occurred while updating profile')),
       );
     }
   }
@@ -168,18 +191,21 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Skills', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text('Skills',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
-          children: _skills.map((skill) => Chip(
-            label: Text(skill),
-            onDeleted: () {
-              setState(() {
-                _skills.remove(skill);
-              });
-            },
-          )).toList(),
+          children: _skills
+              .map((skill) => Chip(
+                    label: Text(skill),
+                    onDeleted: () {
+                      setState(() {
+                        _skills.remove(skill);
+                      });
+                    },
+                  ))
+              .toList(),
         ),
         DropdownButton<String>(
           hint: const Text('Select a skill'),
@@ -201,18 +227,21 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           },
         ),
         const SizedBox(height: 24),
-        const Text('Programming Languages', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text('Programming Languages',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
-          children: _programmingLanguages.map((lang) => Chip(
-            label: Text(lang),
-            onDeleted: () {
-              setState(() {
-                _programmingLanguages.remove(lang);
-              });
-            },
-          )).toList(),
+          children: _programmingLanguages
+              .map((lang) => Chip(
+                    label: Text(lang),
+                    onDeleted: () {
+                      setState(() {
+                        _programmingLanguages.remove(lang);
+                      });
+                    },
+                  ))
+              .toList(),
         ),
         DropdownButton<String>(
           hint: const Text('Select a programming language'),
@@ -239,6 +268,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = context.watch<CRUDUser>().currentUser;
+
+    if (currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Edit Profile")),
+        body: const Center(
+          child: Text('Please log in to edit your profile'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Edit Profile"),
@@ -256,7 +296,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text("Please complete all required fields.")),
+                            content:
+                                Text("Please complete all required fields.")),
                       );
                     }
                   } else if (_canContinue()) {

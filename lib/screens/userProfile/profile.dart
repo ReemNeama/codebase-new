@@ -5,12 +5,13 @@ import 'package:provider/provider.dart';
 import '../../core/crudModel/user_crud.dart';
 import '../../core/crudModel/project_crud.dart';
 import '../../core/crudModel/comment_crud.dart';
-import '../../widget/programming_languages.dart';
-import '../../widget/skills.dart';
+import '../../widgets/programming_languages.dart';
+import '../../widgets/skills.dart';
 import '../../core/models/project.dart';
 import '../../core/models/repo.dart';
 import '../../core/models/comment.dart';
 import '../../core/crudModel/repo_crud.dart';
+import '../../core/models/user.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -33,6 +34,19 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final userProvider = context.watch<CRUDUser>();
     final user = userProvider.currentUser;
+
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Profile'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        ),
+        body: const Center(
+          child: Text('Please log in to view your profile'),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -61,16 +75,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: user.profileImageUrl != null &&
-                                user.profileImageUrl!.isNotEmpty
-                            ? NetworkImage(user.profileImageUrl!)
-                            : const NetworkImage(
-                                "https://placehold.jp/150x150.png",
-                              ),
+                        backgroundImage: NetworkImage(
+                          user.profileImageUrl?.isNotEmpty == true
+                              ? user.profileImageUrl!
+                              : "https://placehold.jp/150x150.png",
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        user.fullName,
+                        "${user.firstName} ${user.lastName}",
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 8),
@@ -215,6 +228,13 @@ class ReviewTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final userProvider = context.watch<CRUDUser>();
     final currentUser = userProvider.currentUser;
+
+    if (currentUser == null) {
+      return const Center(
+        child: Text('Please log in to view reviews'),
+      );
+    }
+
     final projectProvider = context.watch<CRUDProject>();
     final commentProvider = context.watch<CRUDComment>();
 
@@ -246,9 +266,9 @@ class ReviewTab extends StatelessWidget {
         final projectIds = userProjects.map((p) => p.id).toList();
 
         return FutureBuilder<List<Comment>>(
-          future: Future.wait(
-            projectIds.map((id) => commentProvider.getCommentsByProjectId(id))
-          ).then((lists) => lists.expand((list) => list).toList()),
+          future: Future.wait(projectIds
+                  .map((id) => commentProvider.getCommentsByProjectId(id)))
+              .then((lists) => lists.expand((list) => list).toList()),
           builder: (context, commentSnapshot) {
             if (commentSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -294,7 +314,8 @@ class ReviewTab extends StatelessWidget {
                 );
 
                 return Card(
-                  margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  margin:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -304,7 +325,9 @@ class ReviewTab extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               backgroundImage: NetworkImage(
-                                currentUser.profileImageUrl ?? "https://placehold.jp/150x150.png",
+                                currentUser.profileImageUrl?.isNotEmpty == true
+                                    ? currentUser.profileImageUrl!
+                                    : "https://placehold.jp/150x150.png",
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -314,11 +337,13 @@ class ReviewTab extends StatelessWidget {
                                 children: [
                                   Text(
                                     project.name,
-                                    style: Theme.of(context).textTheme.titleMedium,
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
                                   ),
                                   Text(
                                     _formatDate(comment.createdAt),
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ],
                               ),
@@ -328,17 +353,22 @@ class ReviewTab extends StatelessWidget {
                         const SizedBox(height: 10),
                         Text(
                           'Review by ${comment.userId}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         const SizedBox(height: 4),
                         Row(
                           children: List.generate(5, (index) {
                             return Icon(
-                              index < (comment.rating) ? Icons.star : Icons.star_border,
+                              index < (comment.rating ?? 0)
+                                  ? Icons.star
+                                  : Icons.star_border,
                               size: 14,
-                              color: index < (comment.rating) ? Colors.amber : Colors.grey,
+                              color: index < (comment.rating ?? 0)
+                                  ? Colors.amber
+                                  : Colors.grey,
                             );
                           }),
                         ),
@@ -352,113 +382,6 @@ class ReviewTab extends StatelessWidget {
             );
           },
         );
-        //return FutureBuilder<List<Comment>>(
-        //  future: Future.wait(
-        //    projectIds.map((id) => commentProvider.getCommentsByProjectId(id))
-        //  ).then((lists) => lists.expand((list) => list).toList()),
-        //  builder: (context, commentSnapshot) {
-        //    if (commentSnapshot.connectionState == ConnectionState.waiting) {
-        //      return const Center(child: CircularProgressIndicator());
-        //    }
-
-        //    if (commentSnapshot.hasError) {
-        //      return Center(
-        //        child: Text(
-        //          'Error loading comments: ${commentSnapshot.error}',
-        //          style: TextStyle(color: Theme.of(context).colorScheme.error),
-        //        ),
-        //      );
-        //    }
-
-        //    final comments = commentSnapshot.data ?? [];
-
-        //    if (comments.isEmpty) {
-        //      return const Center(
-        //        child: Text('No reviews yet'),
-        //      );
-        //    }
-
-        //    return ListView.builder(
-        //      itemCount: comments.length,
-        //      itemBuilder: (context, index) {
-        //        final comment = comments[index];
-        //        final project = userProjects.firstWhere(
-        //          (p) => p.id == comment.projectId,
-        //          orElse: () => Project(
-        //            id: '',
-        //            userId: '',
-        //            name: 'Unknown Project',
-        //            description: '',
-        //            screenshotsUrl: [],
-        //            status: 'Unknown',
-        //            isGraduation: false,
-        //            collaborators: [],
-        //            downloadUrls: {},
-        //            createdAt: DateTime.now(),
-        //            updatedAt: DateTime.now(),
-        //            category: 'Unknown',
-        //          ),
-        //        );
-
-        //        return Card(
-        //          margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        //          child: Padding(
-        //            padding: const EdgeInsets.all(16),
-        //            child: Column(
-        //              crossAxisAlignment: CrossAxisAlignment.start,
-        //              children: [
-        //                Row(
-        //                  children: [
-        //                    CircleAvatar(
-        //                      backgroundImage: NetworkImage(
-        //                        currentUser.profileImageUrl ?? "https://placehold.jp/150x150.png",
-        //                      ),
-        //                    ),
-        //                    const SizedBox(width: 10),
-        //                    Expanded(
-        //                      child: Column(
-        //                        crossAxisAlignment: CrossAxisAlignment.start,
-        //                        children: [
-        //                          Text(
-        //                            project.name,
-        //                            style: Theme.of(context).textTheme.titleMedium,
-        //                          ),
-        //                          Text(
-        //                            _formatDate(comment.createdAt),
-        //                            style: Theme.of(context).textTheme.bodySmall,
-        //                          ),
-        //                        ],
-        //                      ),
-        //                    ),
-        //                  ],
-        //                ),
-        //                const SizedBox(height: 10),
-        //                Text(
-        //                  'Review by ${comment.userId}',
-        //                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        //                    fontWeight: FontWeight.bold,
-        //                  ),
-        //                ),
-        //                const SizedBox(height: 4),
-        //                Row(
-        //                  children: List.generate(5, (index) {
-        //                    return Icon(
-        //                      index < (comment.rating) ? Icons.star : Icons.star_border,
-        //                      size: 14,
-        //                      color: index < (comment.rating) ? Colors.amber : Colors.grey,
-        //                    );
-        //                  }),
-        //                ),
-        //                const SizedBox(height: 8),
-        //                Text(comment.content),
-        //              ],
-        //            ),
-        //          ),
-        //        );
-        //      },
-        //    );
-        //  },
-        //);
       },
     );
   }
@@ -489,9 +412,11 @@ class _InformationTabState extends State<InformationTab> {
     super.initState();
     _bioController = TextEditingController();
     final user = Provider.of<CRUDUser>(context, listen: false).currentUser;
-    _bioController.text = user.bio ?? '';
-    _selectedSkills = List<String>.from(user.skills);
-    _selectedLanguages = List<String>.from(user.programmingLanguages);
+    if (user != null) {
+      _bioController.text = user.bio ?? '';
+      _selectedSkills = List<String>.from(user.skills);
+      _selectedLanguages = List<String>.from(user.programmingLanguages);
+    }
   }
 
   @override
@@ -543,7 +468,8 @@ class _InformationTabState extends State<InformationTab> {
               selectedColor: Theme.of(context).colorScheme.primaryContainer,
               backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
               labelStyle: TextStyle(
-                color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                color:
+                    isSelected ? Theme.of(context).colorScheme.primary : null,
               ),
               checkmarkColor: Theme.of(context).colorScheme.primary,
             );
@@ -596,6 +522,14 @@ class _InformationTabState extends State<InformationTab> {
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<CRUDUser>(context).currentUser;
+
+    if (user == null) {
+      return const Center(
+        child: Text('Please log in to view information'),
+      );
+    }
+
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16),

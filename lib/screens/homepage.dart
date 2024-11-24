@@ -5,7 +5,7 @@ import '../../core/crudModel/project_crud.dart';
 import '../../core/crudModel/user_crud.dart';
 import 'apps/add_app.dart';
 import 'codebaseStorage/repository_create.dart';
-import 'apps/app_details.dart'; // Added import for AppDetailPage
+import 'apps/app_details.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,6 +22,18 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<CRUDProject>(context, listen: false).fetchItems();
     });
+  }
+
+  String _getGreeting(CRUDUser userProvider) {
+    final user = userProvider.currentUser;
+    if (user != null) {
+      final firstName = user.firstName;
+      final lastName = user.lastName;
+      if (firstName.isNotEmpty || lastName.isNotEmpty) {
+        return 'Welcome, $firstName $lastName!';
+      }
+    }
+    return 'Welcome to UTB Codebase!';
   }
 
   @override
@@ -49,9 +61,9 @@ class _HomePageState extends State<HomePage> {
               children: [
                 // Greeting
                 Text(
-                  'Welcome, ${userProvider.currentUser.firstName} ${userProvider.currentUser.lastName}!',
-                  style:
-                      const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  _getGreeting(userProvider),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 10.h),
                 const Divider(),
@@ -162,13 +174,15 @@ class _HomePageState extends State<HomePage> {
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => AppDetailPage(app: project),
+                                builder: (context) =>
+                                    AppDetailPage(app: project),
                               ),
                             ),
                             child: Padding(
                               padding: EdgeInsets.only(left: 5.w),
                               child: Column(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   SizedBox(
                                     height: 110.h,

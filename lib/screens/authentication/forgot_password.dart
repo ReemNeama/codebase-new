@@ -129,12 +129,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   bool _isLoading = false;
   String _errorMessage = '';
 
-  bool _isValidEmail(String input) {
-    final validSuffix = '@utb.edu.bh';
-    final enteredSuffix = input.substring(input.lastIndexOf('@'));
-    return input.contains('@') && enteredSuffix == validSuffix;
-  }
-
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -186,9 +180,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
-    if (!_isValidEmail("${_emailController.text}@utb.edu.bh")) {
+    final email = _emailController.text.trim();
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
       setState(() {
-        _errorMessage = 'Please enter a valid UTB email address';
+        _errorMessage = 'Please enter a valid email address';
         _isLoading = false;
       });
       return;
@@ -196,7 +191,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: _emailController.text + "@utb.edu.bh",
+        email: email,
       );
       _showSuccessDialog("Password reset link sent! Check your email.");
     } on FirebaseAuthException catch (e) {
@@ -252,8 +247,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               controller: _emailController,
               decoration: InputDecoration(
                 labelText: "Email",
-                hintText: "bh########",
-                suffixText: "@utb.edu.bh",
+                hintText: "example@example.com",
                 border: OutlineInputBorder(),
               ),
             ),

@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import '../../core/crudModel/repo_crud.dart';
 import '../../core/crudModel/user_crud.dart';
 import '../../core/models/repo.dart';
-import '../../core/models/user.dart';
+import '../../core/models/user.dart' as app_user;
 
 class RepositoryPage extends StatefulWidget {
   const RepositoryPage({super.key});
@@ -22,9 +22,9 @@ class _RepositoryPageState extends State<RepositoryPage> {
   final TextEditingController _repoController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
-  List<User> collabUsers = [];
+  List<app_user.User> collabUsers = [];
   List<String> _dropdownEmailList = [];
-  User? _selectedUser;
+  app_user.User? _selectedUser;
   bool? private = false; // Set default to false (Public)
   String pripub = "Public"; // Set default to "Public"
   final List<String> _selectedLanguages = [];
@@ -64,6 +64,16 @@ class _RepositoryPageState extends State<RepositoryPage> {
   Widget build(BuildContext context) {
     var repoProvider = Provider.of<CRUDRepo>(context);
     var userProvider = Provider.of<CRUDUser>(context);
+
+    // Check if user is logged in
+    if (userProvider.currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Add Repository')),
+        body: Center(
+          child: Text('Please log in to create a repository'),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -105,8 +115,7 @@ class _RepositoryPageState extends State<RepositoryPage> {
               SizedBox(height: 16.0.h),
               _buildAddButton(),
               SizedBox(height: 16.0.h),
-              if (collabUsers.isNotEmpty)
-                _buildCollaboratorList(), // SizedBox(height: 16.0.h),
+              if (collabUsers.isNotEmpty) _buildCollaboratorList(),
               _buildAddRepositoryButton(repoProvider),
             ],
           ),
@@ -224,7 +233,9 @@ class _RepositoryPageState extends State<RepositoryPage> {
   }
 
   Widget _buildCollaboratorDropdown(CRUDUser userProvider) {
-    return FutureBuilder<List<User>>(
+    final currentUserStudentId = userProvider.currentUser?.studentId;
+
+    return FutureBuilder<List<app_user.User>>(
       future: userProvider.fetchItems(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -234,14 +245,19 @@ class _RepositoryPageState extends State<RepositoryPage> {
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(child: Text('No users available'));
         } else {
-          // Update the dropdown email list
-          _dropdownEmailList = snapshot.data!
-              .where((user) =>
-                  !collabUsers
-                      .any((collab) => collab.studentId == user.studentId) &&
-                  user.studentId != userProvider.currentUser.studentId)
-              .map((user) => user.id!)
-              .toList();
+          // Filter out users that are already collaborators or the current user
+          final availableUsers = snapshot.data!.where((user) {
+            final userStudentId = user.studentId;
+            if (userStudentId == null) return false;
+
+            return !collabUsers
+                    .any((collab) => collab.studentId == userStudentId) &&
+                userStudentId != currentUserStudentId;
+          }).toList();
+
+          if (availableUsers.isEmpty) {
+            return Center(child: Text('No available collaborators'));
+          }
 
           return DropdownButtonFormField<String>(
             decoration: InputDecoration(
@@ -250,16 +266,27 @@ class _RepositoryPageState extends State<RepositoryPage> {
             ),
             value: _selectedUser?.studentId,
             onChanged: (String? newValue) {
-              setState(() {
-                _selectedUser = snapshot.data!
-                    .firstWhere((user) => user.studentId == newValue);
-              });
+              if (newValue != null) {
+                final selectedUser = availableUsers.firstWhere(
+                  (user) => user.studentId == newValue,
+                  orElse: () => app_user.User.empty(),
+                );
+                setState(() {
+                  _selectedUser = selectedUser;
+                });
+              }
             },
-            items: _dropdownEmailList
-                .map<DropdownMenuItem<String>>((String email) {
+            items: availableUsers.map<DropdownMenuItem<String>>((user) {
+              final studentId = user.studentId;
+              if (studentId == null)
+                return DropdownMenuItem<String>(
+                  value: '',
+                  child: Text('Invalid User'),
+                );
+
               return DropdownMenuItem<String>(
-                value: email,
-                child: Text(email),
+                value: studentId,
+                child: Text('${user.name} ($studentId)'),
               );
             }).toList(),
             hint: Text('Select a collaborator'),
@@ -274,6 +301,7 @@ class _RepositoryPageState extends State<RepositoryPage> {
     return ElevatedButton(
       onPressed: () {
         if (_selectedUser != null &&
+            _selectedUser?.studentId != null &&
             !collabUsers
                 .any((user) => user.studentId == _selectedUser?.studentId)) {
           setState(() {
@@ -299,12 +327,14 @@ class _RepositoryPageState extends State<RepositoryPage> {
         itemBuilder: (context, index) {
           final user = collabUsers[index];
           return ListTile(
-            title: Text(user.studentId ?? ''),
+            title: Text(user.name),
+            subtitle: Text(user.studentId ?? 'No ID'),
             trailing: IconButton(
               icon: Icon(Icons.delete, color: Colors.red),
               onPressed: () {
-                collabUsers.removeAt(index);
-                setState(() {});
+                setState(() {
+                  collabUsers.removeAt(index);
+                });
               },
             ),
           );
@@ -324,13 +354,21 @@ class _RepositoryPageState extends State<RepositoryPage> {
           return;
         }
 
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please log in to create a repository')),
+          );
+          return;
+        }
+
         final folderLocation = _storage.child(_repoController.text.trim());
 
         try {
           final repo = Repo(
             id: '',
             storageUrl: folderLocation.toString(),
-            userId: FirebaseAuth.instance.currentUser!.uid,
+            userId: currentUser.uid,
             name: _repoController.text.trim(),
             description: _descriptionController.text.trim(),
             languages: _selectedLanguages,
@@ -338,7 +376,7 @@ class _RepositoryPageState extends State<RepositoryPage> {
             files: [],
             status: pripub,
             collabs: collabUsers
-                .map((e) => e.studentId!)
+                .map((e) => e.studentId ?? '')
                 .where((id) => id.isNotEmpty)
                 .toList(),
             createdAt: DateTime.now(),

@@ -24,8 +24,10 @@ class Project {
   final List<String> collaborators;
   final Map<String, String> downloadUrls;
 
-
   final String category;
+  final int stars;
+  final int views;
+  final int downloads;
 
   static const List<String> statusOptions = [
     'Pending',
@@ -52,6 +54,9 @@ class Project {
     required this.downloadUrls,
  
     required this.category,
+    this.stars = 0,
+    this.views = 0,
+    this.downloads = 0,
   });
 
   // Factory constructor for creating an empty project
@@ -71,6 +76,9 @@ class Project {
       downloadUrls: {},
 
       category: '',
+      stars: 0,
+      views: 0,
+      downloads: 0,
     );
   }
 
@@ -110,6 +118,9 @@ class Project {
         collaborators: List<String>.from(data['collaborators'] ?? []),
         downloadUrls: Map<String, String>.from(data['downloadUrls'] ?? {}),
         category: data['category'] ?? '',
+        stars: data['stars'] ?? 0,
+        views: data['views'] ?? 0,
+        downloads: data['downloads'] ?? 0,
       );
     } catch (e) {
       print('Error parsing project data: $e');
@@ -142,6 +153,9 @@ class Project {
       collaborators: List<String>.from(data['collaborators'] ?? []),
       downloadUrls: Map<String, String>.from(data['downloadUrls'] ?? {}),
       category: data['category'] ?? '',
+      stars: data['stars'] ?? 0,
+      views: data['views'] ?? 0,
+      downloads: data['downloads'] ?? 0,
     );
   }
 
@@ -164,6 +178,9 @@ class Project {
       'downloadUrls': downloadUrls,
  
       'category': category,
+      'stars': stars,
+      'views': views,
+      'downloads': downloads,
     };
   }
 
@@ -180,6 +197,9 @@ class Project {
     List<String>? collaborators,
     Map<String, String>? downloadUrls,
     String? category,
+    int? stars,
+    int? views,
+    int? downloads,
   }) {
     return Project(
       id: id,
@@ -200,6 +220,9 @@ class Project {
       downloadUrls: downloadUrls ?? this.downloadUrls,
       
       category: category ?? this.category,
+      stars: stars ?? this.stars,
+      views: views ?? this.views,
+      downloads: downloads ?? this.downloads,
     );
   }
 

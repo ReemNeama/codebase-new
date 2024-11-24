@@ -1,4 +1,5 @@
-final List<String> availableSkills = [
+// List of available skills for user profiles
+const List<String> availableSkills = [
   'Web Development',
   'Mobile Development',
   'UI/UX Design',
@@ -7,5 +8,5 @@ final List<String> availableSkills = [
   'DevOps',
   'Machine Learning',
   'Data Science',
-  'Artificial Intillegence'
+  'Artificial Intelligence'
 ];

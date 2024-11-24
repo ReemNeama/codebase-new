@@ -1,4 +1,4 @@
-package com.example.utb_codebase
+package com.example.codebase
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,58 +1,26 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../base/base_crud.dart';
 import '../models/project.dart';
-import '../services/api.dart';
+import '../services/storage.dart';
 
-class CRUDProject extends ChangeNotifier {
-  final Api _api = Api("project");
+class CRUDProject extends BaseCRUD<Project> {
+  final StorageService _storageService = StorageService();
 
-  late List<Project> items = [Project.empty()];
+  CRUDProject() : super("projects");
 
-  Future<List<Project>> fetchItems() async {
-    var result = await _api.getDataCollection();
-    items = result.docs
-        .map((doc) => Project.fromMap(doc.data() as Map<String, dynamic>?, doc.id))
-        .toList();
-    return items;
-  }
+  @override
+  Map<String, dynamic> toJson(Project item) => item.toJson();
 
-  Stream<QuerySnapshot> fetchItemsAsStream() {
-    return _api.streamDataCollection();
-  }
-
-  Future<Project> getItem(String id) async {
-    var doc = await _api.getDocumentById(id);
-    return Project.fromMap(doc.data() as Map<String, dynamic>?, doc.id);
-  }
-
-  Future removeItem(String id) async {
-    await _api.removeDocument(id);
-    return;
-  }
-
-  Future<Project> addItem(Project item) async {
-    var docRef = await _api.addDocument(item.toJson());
-    var doc = await docRef.get();
-    return Project.fromMap(doc.data() as Map<String, dynamic>?, doc.id);
-  }
-
-  Future<Project> updateItem(Project item, String id) async {
-    await _api.updateDocument(item.toJson(), id);
-    var doc = await _api.getDocumentById(id);
-    return Project.fromMap(doc.data() as Map<String, dynamic>?, doc.id);
-  }
+  @override
+  Project fromJson(Map<String, dynamic>? data, String id) =>
+      Project.fromMap(data, id);
 
   Future<String> uploadFile(XFile file, String path) async {
-    final storageRef = FirebaseStorage.instance.ref().child(path);
-    final uploadTask = storageRef.putFile(File(file.path));
-    final snapshot = await uploadTask.whenComplete(() {});
-    final downloadUrl = await snapshot.ref.getDownloadURL();
-    return downloadUrl;
+    return await _storageService.uploadFile(path, File(file.path));
   }
 
   Future<bool> isProjectNameUnique(String projectName) async {
@@ -61,5 +29,89 @@ class CRUDProject extends ChangeNotifier {
         .where('name', isEqualTo: projectName)
         .get();
     return querySnapshot.docs.isEmpty;
+  }
+
+  Future<List<Project>> getProjectsByUserId(String userId) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('projects')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => Project.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      print('Error getting projects by user ID: $e');
+      return [];
+    }
+  }
+
+  Future<List<Project>> getCollaboratedProjects(String userId) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('projects')
+          .where('collaborators', arrayContains: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => Project.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      print('Error getting collaborated projects: $e');
+      return [];
+    }
+  }
+
+  Future<void> incrementViews(String projectId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .update({'views': FieldValue.increment(1)});
+    } catch (e) {
+      print('Error incrementing views: $e');
+    }
+  }
+
+  Future<void> incrementDownloads(String projectId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .update({'downloads': FieldValue.increment(1)});
+    } catch (e) {
+      print('Error incrementing downloads: $e');
+    }
+  }
+
+  Future<void> updateStars(String projectId, int stars) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(projectId)
+          .update({'stars': stars});
+    } catch (e) {
+      print('Error updating stars: $e');
+    }
+  }
+
+  Future<List<Project>> searchProjects(String query) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('projects')
+          .where('name', isGreaterThanOrEqualTo: query)
+          .where('name', isLessThanOrEqualTo: query + '\uf8ff')
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => Project.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      print('Error searching projects: $e');
+      return [];
+    }
   }
 }

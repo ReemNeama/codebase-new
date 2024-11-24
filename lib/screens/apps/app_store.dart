@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_network/image_network.dart';
 import '../../core/models/project.dart';
 import 'app_details.dart';
+import 'add_app.dart';
 
 class AppStorePage extends StatefulWidget {
   const AppStorePage({super.key});

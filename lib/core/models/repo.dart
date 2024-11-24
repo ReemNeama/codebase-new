@@ -49,7 +49,8 @@ class Repo {
       throw DatabaseException('Status is required');
     }
     if (!['Public', 'Private'].contains(status)) {
-      throw DatabaseException('Invalid status value: must be Public or Private');
+      throw DatabaseException(
+          'Invalid status value: must be Public or Private');
     }
   }
 
@@ -62,7 +63,7 @@ class Repo {
       description: '',
       collabs: [],
       files: [],
-      status: 'Public',  // Default to Public
+      status: 'Public', // Default to Public
       languages: [],
       categories: [],
       url: null,
@@ -95,14 +96,14 @@ class Repo {
         description: data['description'] ?? '',
         collabs: List<String>.from(data['collabs'] ?? []),
         files: files,
-        status: data['status'] ?? 'Public',  // Default to Public
+        status: data['status'] ?? 'Public', // Default to Public
         languages: List<String>.from(data['languages'] ?? []),
         categories: List<String>.from(data['categories'] ?? []),
         url: data['url'],
-        createdAt: data['createdAt'] != null 
+        createdAt: data['createdAt'] != null
             ? (data['createdAt'] as Timestamp).toDate()
             : DateTime.now(),
-        updatedAt: data['updatedAt'] != null 
+        updatedAt: data['updatedAt'] != null
             ? (data['updatedAt'] as Timestamp).toDate()
             : DateTime.now(),
       );
@@ -136,14 +137,14 @@ class Repo {
       description: data['description'] ?? '',
       collabs: List<String>.from(data['collabs'] ?? []),
       files: files,
-      status: data['status'] ?? 'Public',  // Default to Public
+      status: data['status'] ?? 'Public', // Default to Public
       languages: List<String>.from(data['languages'] ?? []),
       categories: List<String>.from(data['categories'] ?? []),
       url: data['url'],
-      createdAt: data['createdAt'] != null 
+      createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: data['updatedAt'] != null 
+      updatedAt: data['updatedAt'] != null
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
     );
@@ -186,7 +187,7 @@ class Repo {
       categories: categories,
       files: files ?? this.files,
       url: url ?? this.url,
-      createdAt: createdAt ?? DateTime.now(),
+      createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );
   }

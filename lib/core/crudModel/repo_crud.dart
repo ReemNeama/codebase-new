@@ -4,28 +4,26 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
 
+import '../base/base_crud.dart';
 import '../models/repo.dart';
 import '../services/api.dart';
 
-class CRUDRepo extends ChangeNotifier {
+class CRUDRepo extends BaseCRUD<Repo> {
   final Api _api = Api("repository");
   final _storage = FirebaseStorage.instance.ref('repository/');
-  late List<Repo> items = [];
   List<Reference> currentFiles = [];
   List<Reference> currentFolders = [];
   String currentPath = "";
-  bool isLoading = false;
-  String? error;
 
-  Future<List<Repo>> fetchItems() async {
-    var result = await _api.getDataCollection();
-    items = result.docs
-        .map((doc) => Repo.fromFirestore(doc))
-        .toList();
-    return items;
-  }
+  CRUDRepo() : super("repository");
+
+  @override
+  Map<String, dynamic> toJson(Repo item) => item.toMap();
+
+  @override
+  Repo fromJson(Map<String, dynamic>? data, String id) =>
+      Repo.fromMap(data, id);
 
   Stream<QuerySnapshot> fetchItemsAsStream() {
     return _api.streamDataCollection();
@@ -33,39 +31,43 @@ class CRUDRepo extends ChangeNotifier {
 
   Future<Repo> getItemsById(String id) async {
     var doc = await _api.getDocumentById(id);
-    return Repo.fromFirestore(doc);
+    return Repo.fromMap(doc.data() as Map<String, dynamic>, doc.id);
   }
 
-  Future removeItem(String id) async {
-    await _api.removeDocument(id);
-    return;
+  @override
+  Future<List<Repo>> fetchPaginatedItems({
+    required int pageSize,
+    DocumentSnapshot? lastDocument,
+    String? orderBy,
+  }) async {
+    try {
+      var query = _api.ref.orderBy(orderBy ?? 'name').limit(pageSize);
+
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      var snapshot = await query.get();
+      return snapshot.docs
+          .map((doc) => fromJson(doc.data() as Map<String, dynamic>, doc.id))
+          .toList();
+    } catch (e, stackTrace) {
+      print('Error fetching paginated items: $e');
+      print('Stack trace: $stackTrace');
+      return [];
+    }
   }
 
-  Future updateItem(Repo data, String id) async {
-    data.validate();
-    await _api.updateDocument(data.toMap(), id);
-    return;
-  }
-
-  Future addItem(Repo data) async {
-    data.validate();
-    await _api.addDocument(data.toMap());
-    return;
-  }
-
-  Future<List<Repo>> searchItems(String query) async {
-    if (query.isEmpty) return [];
-    
-    var result = await _api.getDataCollection();
-    return result.docs
-        .map((doc) => Repo.fromFirestore(doc))
-        .where((repo) => 
-          repo.name.toLowerCase().contains(query.toLowerCase()) ||
-          repo.description.toLowerCase().contains(query.toLowerCase()))
+  List<Repo> searchRepos(String query) {
+    if (query.isEmpty) return items;
+    return items
+        .where((repo) =>
+            repo.name.toLowerCase().contains(query.toLowerCase()) ||
+            repo.description.toLowerCase().contains(query.toLowerCase()))
         .toList();
   }
 
-  Future listFolders(String path) async {
+  Future<List<String>> listFolders(String path) async {
     ListResult result = await _storage.child(path).listAll();
     List<String> folders = [];
 
@@ -76,7 +78,6 @@ class CRUDRepo extends ChangeNotifier {
     return folders;
   }
 
-  // New method to get collaborators
   Future<List<String>> getCollaborators(String repoId) async {
     try {
       var doc = await _api.getDocumentById(repoId);
@@ -94,7 +95,6 @@ class CRUDRepo extends ChangeNotifier {
     }
   }
 
-  // New method to schedule deletion
   Future<void> scheduleDeletion(String repoId, DateTime deletionDate) async {
     try {
       await _api.updateDocument(
@@ -108,84 +108,21 @@ class CRUDRepo extends ChangeNotifier {
     }
   }
 
-  Future<List<Repo>> fetchPaginatedItems(int pageKey, int pageSize,
-      {String? searchQuery}) async {
-    try {
-      // First, let's check what data exists in Firestore
-      var allDocs = await _api.ref.get();
-      print('Total documents in Firestore: ${allDocs.docs.length}');
-      
-      for (var doc in allDocs.docs) {
-        var data = doc.data() as Map<String, dynamic>;
-        print('Doc ID: ${doc.id}, Status: ${data['status']}, Name: ${data['name']}');
-      }
-
-      // Changed 'public' to 'Public' to match the case in Firestore
-      Query query = _api.ref.where('status', isEqualTo: 'Public');
-      
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        // Use a compound query for search
-        query = query.where('name', isGreaterThanOrEqualTo: searchQuery)
-                    .where('name', isLessThanOrEqualTo: '$searchQuery\uf8ff');
-      }
-      
-      // Order by creation date
-      query = query.orderBy('createdAt', descending: true);
-      
-      // Apply pagination
-      query = query.limit(pageSize);
-      
-      // If not the first page, use startAfter with the last document's timestamp
-      if (pageKey > 0) {
-        // Get all documents up to the current page to find the last document
-        var previousDocs = await _api.ref
-            .where('status', isEqualTo: 'Public')  // Updated here as well
-            .orderBy('createdAt', descending: true)
-            .limit(pageKey * pageSize)
-            .get();
-            
-        if (previousDocs.docs.isNotEmpty) {
-          var lastDoc = previousDocs.docs.last;
-          var lastData = lastDoc.data() as Map<String, dynamic>;
-          var lastTimestamp = lastData['createdAt'] as Timestamp;
-          
-          query = query.startAfter([lastTimestamp]);
-        }
-      }
-      
-      var result = await query.get();
-      print('Query results: ${result.docs.length} documents found');
-      
-      for (var doc in result.docs) {
-        var data = doc.data() as Map<String, dynamic>;
-        print('Found doc with name: ${data['name']}, status: ${data['status']}');
-      }
-      
-      return result.docs.map((doc) => Repo.fromFirestore(doc)).toList();
-    } catch (e, stackTrace) {
-      print('Error fetching paginated items: $e');
-      print('Stack trace: $stackTrace');
-      rethrow;
-    }
-  }
-
   Future<void> listFilesAndFolders(String path) async {
     if (isLoading) return;
-    
+
     try {
       isLoading = true;
       error = null;
       notifyListeners();
 
-      final storageRef = FirebaseStorage.instance.ref().child(path);
-      final listResult = await storageRef.listAll();
+      ListResult result = await _storage.child(path).listAll();
 
-      currentFiles = listResult.items.where((item) => item.name != ".init").toList();
-      currentFolders = listResult.prefixes;
+      currentFiles = result.items;
+      currentFolders = result.prefixes;
       currentPath = path;
     } catch (e) {
-      error = 'Error listing files and folders: $e';
-      rethrow;
+      error = e.toString();
     } finally {
       isLoading = false;
       notifyListeners();
@@ -200,7 +137,7 @@ class CRUDRepo extends ChangeNotifier {
 
       final newFolderRef = _storage.child('$currentPath/$folderName');
       await newFolderRef.child('.init').putData(Uint8List(0));
-      
+
       await listFilesAndFolders(currentPath);
     } catch (e) {
       error = 'Error creating folder: $e';
@@ -249,7 +186,7 @@ class CRUDRepo extends ChangeNotifier {
       for (var item in listResult.items) {
         final fileName = item.name;
         final newItemRef = newFolderRef.child(fileName);
-        
+
         final data = await item.getData();
         if (data != null) {
           await newItemRef.putData(data);
@@ -274,7 +211,8 @@ class CRUDRepo extends ChangeNotifier {
     }
   }
 
-  Future<void> _copyFolder(Reference sourceFolder, Reference targetFolder) async {
+  Future<void> _copyFolder(
+      Reference sourceFolder, Reference targetFolder) async {
     final listResult = await sourceFolder.listAll();
 
     // Copy all files
@@ -300,7 +238,7 @@ class CRUDRepo extends ChangeNotifier {
 
       final fileRef = _storage.child('$currentPath/$fileName');
       await fileRef.putData(fileData);
-      
+
       await listFilesAndFolders(currentPath);
     } catch (e) {
       error = 'Error uploading file: $e';

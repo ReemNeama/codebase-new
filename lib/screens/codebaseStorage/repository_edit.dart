@@ -75,9 +75,6 @@ class _EditRepositoryPageState extends State<EditRepositoryPage> {
     // Listen for changes
     _nameController.addListener(_onFieldChanged);
     _descriptionController.addListener(_onFieldChanged);
-
-    // Initialize collaborators
-    _initializeCollaborators();
   }
 
   void _onFieldChanged() {
@@ -116,44 +113,6 @@ class _EditRepositoryPageState extends State<EditRepositoryPage> {
     );
 
     return result ?? false;
-  }
-
-  Future<void> _initializeCollaborators() async {
-    List<Future<User>> futures =
-        widget.repository.collabs.map((collab) {
-      return fetchUserById(collab);
-    }).toList();
-
-    collaborators = await Future.wait(futures);
-    setState(() {}); // Update the UI after fetching collaborators
-  }
-
-  Future<User> fetchUserById(String studentId) async {
-    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('studentId', isEqualTo: studentId)
-        .limit(1)
-        .get();
-
-    if (querySnapshot.docs.isNotEmpty) {
-      DocumentSnapshot doc = querySnapshot.docs.first;
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      return User(
-        id: doc.id,
-        email: data['email'] ?? '',
-        firstName: data['firstName'] ?? 'First Name',
-        lastName: data['lastName'] ?? 'Last Name',
-        studentId: studentId,
-        profileImageUrl: data['profileImageUrl'],
-        phoneNumber: data['phoneNumber'],
-        bio: data['bio'],
-        skills: List<String>.from(data['skills'] ?? []),
-        programmingLanguages: List<String>.from(data['programmingLanguages'] ?? []),
-        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      );
-    }
-    return User.empty();
   }
 
   @override
@@ -362,11 +321,13 @@ class _EditRepositoryPageState extends State<EditRepositoryPage> {
         }
 
         final users = snapshot.data!;
-        final filteredUsers = users.where((user) => 
-          !collaborators.any((collab) => collab.studentId == user.studentId) &&
-          user.studentId != null &&
-          user.studentId!.isNotEmpty
-        ).toList();
+        final filteredUsers = users
+            .where((user) =>
+                !collaborators
+                    .any((collab) => collab.studentId == user.studentId) &&
+                user.studentId != null &&
+                user.studentId!.isNotEmpty)
+            .toList();
 
         return DropdownButtonFormField<String>(
           value: _selectedUser?.studentId,
@@ -442,7 +403,10 @@ class _EditRepositoryPageState extends State<EditRepositoryPage> {
             languages: _selectedLanguages,
             categories: _selectedCategory,
             status: status,
-            collabs: collaborators.map((e) => e.studentId ?? '').where((id) => id.isNotEmpty).toList(),
+            collabs: collaborators
+                .map((e) => e.studentId ?? '')
+                .where((id) => id.isNotEmpty)
+                .toList(),
             createdAt: widget.repository.createdAt,
             updatedAt: DateTime.now(),
           );
