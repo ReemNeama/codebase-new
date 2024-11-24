@@ -269,9 +269,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 : ElevatedButton(
                     onPressed: passwordReset,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color.fromARGB(221, 193, 5, 33),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding:
                           EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: Text("Reset Password"),
                   ),
