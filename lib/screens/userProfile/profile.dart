@@ -42,7 +42,7 @@ class _ProfilePageState extends State<ProfilePage> {
             context.read<CRUDUser>().getCurrentUser(),
             context.read<CRUDProject>().fetchItems(),
             context.read<CRUDRepo>().fetchItems(),
-            context.read<CRUDComment>().fetchItems(),
+            context.read<CRUDComment>().fetchComments(),
           ]);
         },
         child: SingleChildScrollView(
@@ -56,7 +56,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
+                        backgroundImage: user.profileImageUrl != null &&
+                                user.profileImageUrl!.isNotEmpty
                             ? NetworkImage(user.profileImageUrl!)
                             : const NetworkImage(
                                 "https://placehold.jp/150x150.png",
@@ -82,7 +83,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               final projectCount = projectSnapshot.hasData
                                   ? projectSnapshot.data!
                                       .where((project) =>
-                                        project.userId == user.id )
+                                          project.userId == user.id)
                                       .length
                                   : 0;
                               return InfoCard(
@@ -185,7 +186,9 @@ class TabSection extends StatelessWidget {
             child: TabBarView(
               children: [
                 ReviewTab(),
-                InformationTab(isEditing: false, onProfileUpdate: (bio, skills, languages) {}),
+                InformationTab(
+                    isEditing: false,
+                    onProfileUpdate: (bio, skills, languages) {}),
               ],
             ),
           ),
@@ -226,7 +229,8 @@ class ReviewTab extends StatelessWidget {
         }
 
         final projects = projectSnapshot.data ?? [];
-        final userProjects = projects.where((p) => p.userId == currentUser.id).toList();
+        final userProjects =
+            projects.where((p) => p.userId == currentUser.id).toList();
         if (userProjects.isEmpty) {
           return const Center(
             child: Text('No projects found'),
@@ -235,7 +239,7 @@ class ReviewTab extends StatelessWidget {
 
         final projectIds = userProjects.map((p) => p.id).toList();
 
-return Container();
+        return Container();
         //return FutureBuilder<List<Comment>>(
         //  future: Future.wait(
         //    projectIds.map((id) => commentProvider.getCommentsByProjectId(id))
